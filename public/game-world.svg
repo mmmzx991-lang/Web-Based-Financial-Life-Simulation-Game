@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 530">
+  <defs>
+    <linearGradient id="land" x2="0" y2="1">
+      <stop stop-color="#e6ead7" />
+      <stop offset="1" stop-color="#d2ddc7" />
+    </linearGradient>
+    <linearGradient id="roof">
+      <stop stop-color="#399c8b" />
+      <stop offset="1" stop-color="#216959" />
+    </linearGradient>
+    <filter id="shadow"><feGaussianBlur stdDeviation="11" /></filter>
+    <g id="tree">
+      <ellipse cy="12" rx="21" ry="10" fill="#b6c9ad" />
+      <path d="M0-25V10" stroke="#827054" stroke-width="5" />
+      <path d="M-20-14Q-28-48 0-57Q28-48 20-14Z" fill="#609274" />
+      <path d="M0-57Q28-48 20-14L0-7Z" fill="#42775d" />
+    </g>
+    <g id="house">
+      <path d="M-47-2 0-28 47-2 0 26Z" fill="#c5cab5" />
+      <path d="M-40-62 0-40V14L-40-8Z" fill="#e5dbc3" />
+      <path d="M0-40 40-62V-8L0 14Z" fill="#bdc7ad" />
+      <path d="M-48-63-7-99 47-72 6-36Z" fill="url(#roof)" />
+      <path d="M-48-63-7-99-7-87-40-58Z" fill="#2d6e59" />
+      <path d="M10-40 24-48V-25L10-17Z" fill="#66818a" />
+      <path d="M-27-51-14-44V-27L-27-34Z" fill="#547b83" />
+      <path d="M-14-5V-28L-1-21V2Z" fill="#887759" />
+    </g>
+    <g id="tower">
+      <path d="M-45-111 0-136 45-111 0-86Z" fill="#ece7d5" />
+      <path d="M-45-111 0-86V20L-45-5Z" fill="#d4d8c7" />
+      <path d="M0-86 45-111V-5L0 20Z" fill="#b0c2b1" />
+      <path
+        d="M-36-97-26-92V-75L-36-80ZM-18-87-8-82V-65L-18-70ZM-36-67-26-62V-45L-36-50ZM-18-57-8-52V-35L-18-40ZM-36-37-26-32V-15L-36-20ZM-18-27-8-22V-5L-18-10Z"
+        fill="#578382"
+      />
+      <path
+        d="M8-82 18-87V-70L8-65ZM26-92 36-97V-80L26-75ZM8-52 18-57V-40L8-35ZM26-62 36-67V-50L26-45ZM8-22 18-27V-10L8-5ZM26-32 36-37V-20L26-15Z"
+        fill="#758f83"
+      />
+    </g>
+  </defs>
+  <ellipse
+    cx="445"
+    cy="427"
+    rx="355"
+    ry="38"
+    fill="#d6d2bf"
+    opacity=".5"
+    filter="url(#shadow)"
+  />
+  <path d="M56 312 436 101 842 309 462 522Z" fill="#bccbb6" />
+  <path d="M56 300 436 89 842 297 462 510Z" fill="url(#land)" />
+  <path d="M179 368 550 162 602 189 231 397Z" fill="#f3eddb" />
+  <path d="M266 181 672 389 621 418 215 211Z" fill="#f3eddb" />
+  <path
+    d="M190 374 561 168M278 187 682 395"
+    stroke="#d5bb7a"
+    stroke-width="2"
+    stroke-dasharray="8 9"
+    fill="none"
+  />
+  <path d="M432 366 550 301 662 358 543 425Z" fill="#a9c5b1" />
+  <path d="M464 369 550 322 630 363 543 411Z" fill="#c5d4bb" />
+  <use href="#house" x="211" y="285" />
+  <use href="#house" x="338" y="218" transform="translate(0 -12)" />
+  <use href="#tower" x="430" y="199" />
+  <use href="#tower" x="535" y="249" />
+  <use href="#tower" x="651" y="303" />
+  <g transform="translate(332 386)">
+    <path d="M-62-72 0-107 62-72 0-37Z" fill="#2d7567" />
+    <path d="M-55-65 0-34V14L-55-17Z" fill="#efe1c5" />
+    <path d="M0-34 55-65V-17L0 14Z" fill="#d4c7a9" />
+    <path d="M-57-45 0-13 57-45V-58L0-26-57-58Z" fill="#b88c45" />
+    <path d="M-43-30-8-10V4L-43-16Z" fill="#6d9895" />
+    <path d="M9-10 39-27V-12L9 5Z" fill="#477c7c" />
+    <path
+      d="M-40-62 0-40 40-62"
+      fill="none"
+      stroke="#559a87"
+      stroke-width="5"
+    />
+  </g>
+  <use href="#tree" x="127" y="323" />
+  <use href="#tree" x="305" y="148" />
+  <use href="#tree" x="582" y="157" />
+  <use href="#tree" x="751" y="317" />
+  <use href="#tree" x="695" y="364" />
+  <use href="#tree" x="461" y="451" />
+  <use href="#tree" x="403" y="413" />
+  <use href="#tree" x="268" y="425" />
+  <g transform="translate(551 365)">
+    <ellipse cy="10" rx="25" ry="12" fill="#d8c79b" />
+    <path d="M0-6V-40" stroke="#c6a160" stroke-width="6" />
+    <circle cy="-49" r="14" fill="#d5b269" />
+    <path d="m-6-49 4 4 8-9" stroke="#fff7d4" stroke-width="3" fill="none" />
+  </g>
+  <g fill="#fffaf0" stroke="#c8cfb7">
+    <path d="m336 296 16-9 16 9-16 9Z" />
+    <path d="m378 320 16-9 16 9-16 9Z" />
+    <path d="m420 344 16-9 16 9-16 9Z" />
+  </g>
+  <circle
+    cx="353"
+    cy="272"
+    r="8"
+    fill="#087f73"
+    stroke="#fff"
+    stroke-width="4"
+  />
+</svg>

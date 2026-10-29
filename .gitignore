@@ -4,3 +4,4 @@ data/
 coverage/
 *.log
 .test-data-*/
+.browser-results/

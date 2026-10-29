@@ -1,5 +1,7 @@
 # Initial scaffold plan — 29 October 2026
 
+Historical scaffold plan. Superseded by IMPLEMENTATION-2026-10-30.md and PROPOSAL-MAPPING.md for the playable bilingual v0.2 implementation.
+
 Source: the user's V12.6 CAT404 summary. The complete frozen proposal was not accessible; do not describe this implementation as a full proposal audit.
 
 Use native Node.js HTTP, ES modules, a plain responsive English frontend and the built-in test runner. This keeps setup dependency-free. A framework plus database would add setup before it is needed; a browser-only simulation would not supply the requested backend API.

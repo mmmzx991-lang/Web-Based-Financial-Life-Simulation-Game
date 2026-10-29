@@ -1,76 +1,472 @@
-const $=id=>document.getElementById(id);
-const money=value=>new Intl.NumberFormat('en-MY',{style:'currency',currency:'MYR'}).format(value/100);
-let config,session,busy=false;
-async function api(path,method='GET',body) {
-  const response=await fetch(path,{method,headers:{'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});
-  const value=await response.json();
-  if(!response.ok) throw new Error(value.error||'Request failed');
+import { t, setLanguage, getLanguage, text, money, errorText } from "./i18n.js";
+import { pages, shell, authDialog, tradeDialog, escape } from "./views.js";
+import { exportReport } from "./export-report.js";
+import { switchUser } from "./account-state.js";
+const state = {
+  user: null,
+  config: null,
+  session: null,
+  view: "home",
+  games: [],
+  entries: [],
+  selection: { mode: "full-life", difficulty: "normal", ruleset: "standard" },
+  leaderboardFilter: { mode: "full-life", difficulty: "normal" },
+  marketFilter: "all",
+  busy: false,
+};
+const root = document.getElementById("app"),
+  dialog = document.getElementById("dialog"),
+  dialogBody = document.getElementById("dialog-body");
+function setUser(user) {
+  if (switchUser(state, user)) localStorage.removeItem("investment-last-game");
+}
+let authMode = "login",
+  dialogType = "",
+  dialogAsset = "",
+  confirmResolver;
+setLanguage(getLanguage());
+async function api(path, method = "GET", body) {
+  const response = await fetch(path, {
+    method,
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  let value;
+  try {
+    value = await response.json();
+  } catch {
+    throw new Error("Server response could not be read");
+  }
+  if (!response.ok) {
+    const e = new Error(value.error || "Request failed");
+    e.status = response.status;
+    e.code = value.code;
+    throw e;
+  }
   return value;
 }
-async function run(action) {
-  if(busy) return;
-  busy=true; document.querySelectorAll('button').forEach(b=>b.disabled=true);
-  try {await action();} catch(error) {$('status').textContent=error.message;}
-  finally {busy=false;document.querySelectorAll('button').forEach(b=>b.disabled=false);if(session) setCompleted();}
-}
-function setCompleted() {
-  const completed=session.summary.completed;
-  $('advance-one').disabled=completed; $('advance-three').disabled=completed;
-  document.querySelectorAll('[data-side]').forEach(button=>button.disabled=completed);
+function toast(message, error = false) {
+  const node = document.getElementById("toast");
+  node.textContent = message;
+  node.classList.toggle("error", error);
+  node.hidden = false;
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => (node.hidden = true), error ? 10000 : 4500);
 }
 function render() {
-  const {game,summary}=session;
-  $('dashboard').hidden=false;
-  $('game-mode').textContent=`${game.mode.replaceAll('-',' ')} / ${game.difficulty} / ${game.ruleset}`;
-  $('age').textContent=`Age ${summary.age} · Month ${summary.month}${summary.retired?' · Retired':''}`;
-  $('metrics').replaceChildren(...[
-    ['Cash balance',money(summary.cash)],['Net worth',money(summary.netWorth)],
-    ['Monthly salary',money(game.monthlySalary)],['Monthly living cost',money(summary.age<45?200000:summary.age<60?300000:250000)]
-  ].map(([label,value])=>{
-    const card=document.createElement('div');card.className='metric';
-    const title=document.createElement('p');title.textContent=label;
-    const amount=document.createElement('strong');amount.textContent=value;
-    card.append(title,amount);return card;
-  }));
-  $('assets').replaceChildren(...config.assets.map(asset=>{
-    const row=document.createElement('tr');
-    for(const text of [asset.name,money(game.prices[asset.id]),game.holdings[asset.id]||0]) {const cell=document.createElement('td');cell.textContent=text;row.append(cell);}
-    const controls=document.createElement('td');
-    for(const side of ['buy','sell']) {
-      const button=document.createElement('button');button.className='small secondary';button.dataset.side=side;
-      button.textContent=`${side==='buy'?'Buy':'Sell'} 1`;button.setAttribute('aria-label',`${side} one unit of ${asset.name}`);
-      button.onclick=()=>run(async()=>{session=await api(`/api/games/${session.id}/trade`,'POST',{assetId:asset.id,side,quantity:1});render();$('status').textContent='Trade settled. Save to keep your progress.';});
-      controls.append(button);
-    }
-    row.append(controls);return row;
-  }));
-  $('systems').replaceChildren(...config.systems.map(system=>{
-    const card=document.createElement('section');card.className='panel';
-    const title=document.createElement('h3');title.textContent=system.name;
-    const description=document.createElement('p');description.textContent=system.description;
-    const status=document.createElement('span');status.className='badge';status.textContent='Planned';
-    card.append(title,description,status);return card;
-  }));
-  $('report-title').textContent=summary.completed?'Final report':'Journey report';
-  $('report-text').textContent=`${summary.monthsPlayed} months played. Income: ${money(summary.totalIncome)}. Living costs: ${money(summary.totalExpenses)}. Portfolio: ${money(summary.portfolioValue)}.${summary.negativeCash?' Cash is negative; borrowing and bankruptcy rules are not implemented.':''}`;
-  $('history').replaceChildren(...game.history.slice(-6).reverse().map(month=>{
-    const item=document.createElement('li');item.textContent=`Age ${Math.floor((month.ageMonths-1)/12)}, month ${(month.ageMonths-1)%12+1} · Income ${money(month.salary)} · Expenses ${money(month.expenses)} · Closing cash ${money(month.cash)}`;return item;
-  }));
-  setCompleted();
+  if (!state.config) return;
+  root.innerHTML = shell(state, (pages[state.view] || pages.home)(state));
+  document.title = t("brand");
+  document
+    .getElementById("dialog-close")
+    .setAttribute("aria-label", t("close"));
+  document.getElementById("skip-link").textContent =
+    getLanguage() === "zh" ? "跳到主要内容" : "Skip to content";
+  const ended =
+    state.session &&
+    ["completed", "bankrupt"].includes(state.session.game.status);
+  document
+    .querySelectorAll(
+      "[data-action],[data-trade],[data-start-game],[data-load]",
+    )
+    .forEach(
+      (b) =>
+        (b.disabled =
+          state.busy ||
+          (ended &&
+            (b.hasAttribute("data-action") || b.hasAttribute("data-trade")))),
+    );
+  document
+    .querySelectorAll('form[data-form] button[type="submit"]')
+    .forEach(
+      (b) =>
+        (b.disabled = state.busy || (ended && state.view !== "leaderboard")),
+    );
+  if (state.busy) root.setAttribute("aria-busy", "true");
+  else root.removeAttribute("aria-busy");
 }
-$('new-game').onsubmit=event=>{event.preventDefault();run(async()=>{
-  session=await api('/api/games','POST',Object.fromEntries(new FormData(event.target)));
-  render();$('status').textContent='Journey started. Save when you want to keep your progress.';
-});};
-for(const [id,months] of [['advance-one',1],['advance-three',3]]) $(id).onclick=()=>run(async()=>{
-  session=await api(`/api/games/${session.id}/advance`,'POST',{months});render();
-  $('status').textContent=session.summary.completed?'Journey complete. Your final report is ready.':'Monthly settlement complete. Save to keep your progress.';
+async function work(task, { modal = false } = {}) {
+  if (state.busy) return;
+  state.busy = true;
+  render();
+  dialog
+    .querySelectorAll('button[type="submit"]')
+    .forEach((b) => (b.disabled = true));
+  try {
+    await task();
+  } catch (e) {
+    const target =
+      modal && dialog.open ? document.getElementById("dialog-error") : null;
+    if (target) target.textContent = errorText(e);
+    else toast(errorText(e), true);
+    if (e.status === 401) {
+      state.user = null;
+      state.session = null;
+      state.view = "home";
+    }
+  } finally {
+    state.busy = false;
+    render();
+    dialog
+      .querySelectorAll('button[type="submit"]')
+      .forEach((b) => (b.disabled = false));
+  }
+}
+function openDialog(content, type) {
+  dialogBody.innerHTML = content;
+  dialogType = type;
+  if (!dialog.open) dialog.showModal();
+  requestAnimationFrame(() =>
+    dialog.querySelector('input:not([type="hidden"]),button')?.focus(),
+  );
+}
+function closeDialog() {
+  dialog.close();
+  dialogType = "";
+  if (confirmResolver) {
+    confirmResolver(false);
+    confirmResolver = null;
+  }
+}
+document.getElementById("dialog-close").onclick = closeDialog;
+dialog.addEventListener("cancel", (e) => {
+  e.preventDefault();
+  closeDialog();
 });
-$('save').onclick=()=>run(async()=>{await api(`/api/games/${session.id}/save`,'POST',{});localStorage.setItem('investment-game-save',session.id);$('status').textContent='Saved successfully.';});
-$('resume').onclick=()=>run(async()=>{const id=localStorage.getItem('investment-game-save');if(!id) throw new Error('No saved game found in this browser.');session=await api(`/api/games/${id}`);render();$('status').textContent='Saved journey resumed.';});
-$('download').onclick=()=>run(async()=>{
-  const summary=await api(`/api/games/${session.id}/report`);
-  const url=URL.createObjectURL(new Blob([JSON.stringify({type:summary.completed?'final':'progress',units:'integer sen',...summary},null,2)],{type:'application/json'}));
-  const link=document.createElement('a');link.href=url;link.download='investment-game-report.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+dialog.addEventListener("click", (e) => {
+  if (e.target === dialog) closeDialog();
 });
-run(async()=>{config=await api('/api/config');$('status').textContent='Ready to begin.';});
+function confirmDecision(message) {
+  return new Promise((resolve) => {
+    confirmResolver = resolve;
+    openDialog(
+      `<p class="eyebrow">${t("review")}</p><h2>${t("confirm")}</h2><p>${escape(message)}</p><div class="action-row"><button class="button secondary" data-confirm="no">${t("cancel")}</button><button class="button primary" data-confirm="yes">${t("confirm")}</button></div>`,
+      "confirm",
+    );
+  });
+}
+async function loadGames() {
+  if (state.user) state.games = (await api("/api/games")).games;
+}
+async function loadGame(id) {
+  state.session = await api("/api/games/" + id);
+  localStorage.setItem("investment-last-game", id);
+}
+async function loadLeaderboard() {
+  const { mode, difficulty } = state.leaderboardFilter;
+  state.entries = (
+    await api(
+      `/api/leaderboard?mode=${encodeURIComponent(mode)}&difficulty=${encodeURIComponent(difficulty)}`,
+    )
+  ).entries;
+}
+async function navigate(view) {
+  const privateView = !["home", "setup", "help", "leaderboard"].includes(view);
+  if (privateView && !state.user) {
+    authMode = "login";
+    openDialog(authDialog(authMode), "auth");
+    return;
+  }
+  if (privateView && !state.session && view !== "profile") {
+    state.view = "setup";
+    return;
+  }
+  if (view === "profile") await loadGames();
+  if (view === "leaderboard") await loadLeaderboard();
+  state.view = view;
+  window.scrollTo({ top: 0, behavior: "instant" });
+}
+function sen(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0 || n > 1e9)
+    throw new Error("Invalid amount");
+  return Math.round(n * 100);
+}
+async function act(action) {
+  const id = state.session?.id;
+  if (!id) throw new Error("Sign in and start a game");
+  const key = `investment-pending-${id}`,
+    fingerprint = JSON.stringify(action);
+  let pending;
+  try {
+    pending = JSON.parse(localStorage.getItem(key) || "null");
+  } catch {}
+  if (!pending || pending.fingerprint !== fingerprint)
+    pending = { fingerprint, requestId: crypto.randomUUID() };
+  localStorage.setItem(key, JSON.stringify(pending));
+  try {
+    state.session = await api(`/api/games/${id}/action`, "POST", {
+      requestId: pending.requestId,
+      action,
+    });
+    localStorage.removeItem(key);
+    toast(t("saved"));
+    if (["completed", "bankrupt"].includes(state.session.game.status))
+      state.view = "report";
+  } catch (e) {
+    if (e.status) localStorage.removeItem(key);
+    throw e;
+  }
+}
+async function begin() {
+  if (!state.user) setUser((await api("/api/auth/guest", "POST", {})).user);
+  state.session = await api("/api/games", "POST", state.selection);
+  localStorage.setItem("investment-last-game", state.session.id);
+  state.view = "life";
+  toast(t("welcome"));
+}
+function updateQuote() {
+  const form = document.getElementById("trade-form");
+  if (!form) return;
+  form.elements.leverage.disabled = form.elements.side.value === "sell";
+  const data = new FormData(form),
+    g = state.session.game,
+    q = Math.max(0, Number(data.get("quantity")) || 0),
+    leverage = Number(data.get("leverage")) || 1,
+    side = data.get("side");
+  const value = Math.round(q * g.prices[dialogAsset]),
+    fee = Math.max(1, Math.round(value * (state.config.tradeFeeRate ?? 0.002)));
+  document.getElementById("trade-quote").innerHTML =
+    `<div class="detail-row"><span>${t("tradeValue")}</span><strong>${money(value)}</strong></div><div class="detail-row"><span>${t("transactionFee")}</span><strong>${money(fee)}</strong></div><div class="detail-row"><span>${side === "buy" ? (leverage > 1 ? t("margin") : t("totalCost")) : t("cash")}</span><strong>${money(side === "buy" ? Math.round(value / leverage) + fee : Math.max(0, value - fee))}</strong></div>`;
+}
+function actionFromElement(el) {
+  const action = { type: el.dataset.action };
+  for (const [key, value] of Object.entries(el.dataset)) {
+    if (key !== "action")
+      action[key] = key === "months" ? Number(value) : value;
+  }
+  return action;
+}
+function quote(a) {
+  const g = state.session.game,
+    c = state.config,
+    settings = c.settings || {};
+  if (a.type === "declare-bankruptcy") return t("confirmBankruptcy");
+  if (a.type === "start-business") {
+    const b = c.businessTypes[a.businessType];
+    return `${text(b.name)} · ${t("startupCost")}: ${money(b.cost)}. ${t("confirmMoney")}`;
+  }
+  if (a.type === "buy-property") {
+    const p = c.propertyTypes[a.propertyType];
+    return `${text(p.name)} · ${t("value")}: ${money(p.value)}. ${t("cash")}: ${money(a.financing ? p.value * p.downPayment : p.value)}. ${a.financing ? `${t("annualRate")} ${p.annualRate * 100}% · ${p.term} ${t("months")}. ` : ""}${t("propertySaleHint")}`;
+  }
+  if (["sell-property", "sell-business"].includes(a.type))
+    return t("propertySaleHint");
+  if (a.type === "extend-bill")
+    return `${t("extendBill")} · ${money(settings.extensionFee ?? 5000)}. ${t("billHint")}`;
+  if (["business-advertise", "business-upgrade"].includes(a.type)) {
+    const b = g.businesses.find((b) => b.id === a.businessId),
+      type = c.businessTypes[b.type];
+    return `${t(a.type === "business-advertise" ? "advertise" : "upgrade")} · ${money(type[a.type === "business-advertise" ? "advertisingCost" : "upgradeCost"] * (a.type === "business-upgrade" ? b.level : 1))}. ${t("businessHint")}`;
+  }
+  if (a.type === "take-loan") {
+    const rate = (settings.personalLoanRate ?? 0.075) / 12,
+      payment = Math.round((a.amount * rate) / (1 - (1 + rate) ** -a.term));
+    return `${t("takeLoan")}: ${money(a.amount)} · ${a.term} ${t("months")} · ${t("annualRate")} ${(settings.personalLoanRate ?? 0.075) * 100}% · ${t("payment")}: ${money(payment)}. ${t("bankHint")}`;
+  }
+  if (a.type === "repay-loan")
+    return `${t("repayLoan")}: ${money(g.loans.find((l) => l.id === a.loanId)?.principal)}. ${t("bankHint")}`;
+  if (a.type === "business-dividend")
+    return `${t("dividend")}: ${money(a.amount)}. ${t("businessHint")}`;
+  if (a.type === "close-position")
+    return t("lockHint") + " " + t("positionEquity");
+  return null;
+}
+async function perform(action) {
+  const message = quote(action);
+  if (message && !(await confirmDecision(message))) return;
+  await work(() => act(action));
+}
+document.addEventListener("click", async (e) => {
+  const el = e.target.closest("button,[data-view]");
+  if (!el || el.disabled) return;
+  if (el.dataset.confirm) {
+    const resolve = confirmResolver;
+    confirmResolver = null;
+    dialog.close();
+    resolve?.(el.dataset.confirm === "yes");
+    return;
+  }
+  if (el.dataset.language) {
+    setLanguage(el.dataset.language);
+    render();
+    return;
+  }
+  if (el.dataset.auth || el.dataset.switchAuth) {
+    authMode = el.dataset.auth || el.dataset.switchAuth;
+    openDialog(authDialog(authMode), "auth");
+    return;
+  }
+  if (el.hasAttribute("data-guest")) {
+    await work(
+      async () => {
+        setUser((await api("/api/auth/guest", "POST", {})).user);
+        closeDialog();
+        state.view = "setup";
+      },
+      { modal: true },
+    );
+    return;
+  }
+  if (el.dataset.view) {
+    await work(() => navigate(el.dataset.view));
+    return;
+  }
+  for (const key of ["mode", "difficulty", "ruleset"])
+    if (el.dataset[key]) {
+      state.selection[key] = el.dataset[key];
+      render();
+      return;
+    }
+  if (el.dataset.filter) {
+    state.marketFilter = el.dataset.filter;
+    render();
+    return;
+  }
+  if (el.hasAttribute("data-start-game")) {
+    await work(begin);
+    return;
+  }
+  if (el.dataset.load) {
+    await work(async () => {
+      await loadGame(el.dataset.load);
+      state.view = "life";
+    });
+    return;
+  }
+  if (el.dataset.trade) {
+    dialogAsset = el.dataset.trade;
+    openDialog(tradeDialog(state, dialogAsset), "trade");
+    updateQuote();
+    return;
+  }
+  if (el.dataset.action) {
+    await perform(actionFromElement(el));
+    return;
+  }
+  if (el.hasAttribute("data-logout")) {
+    await work(async () => {
+      await api("/api/auth/logout", "POST", {});
+      state.user = null;
+      state.session = null;
+      state.games = [];
+      state.view = "home";
+      localStorage.removeItem("investment-last-game");
+    });
+    return;
+  }
+  if (el.hasAttribute("data-download"))
+    await work(async () => {
+      const report = await api(`/api/games/${state.session.id}/report`),
+        g = state.session.game;
+      const url = URL.createObjectURL(
+        new Blob([exportReport(g, report)], { type: "text/csv;charset=utf-8" }),
+      );
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `investment-game-${g.mode}-${getLanguage()}.csv`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    });
+});
+dialog.addEventListener("input", () => {
+  if (dialogType === "trade") updateQuote();
+});
+document.addEventListener("submit", async (e) => {
+  const form = e.target;
+  e.preventDefault();
+  const values = Object.fromEntries(new FormData(form));
+  if (form.id === "auth-form") {
+    await work(
+      async () => {
+        setUser(
+          (
+            await api(
+              "/api/auth/" + (authMode === "register" ? "register" : "login"),
+              "POST",
+              values,
+            )
+          ).user,
+        );
+        closeDialog();
+        await loadGames();
+        if (state.games.length) {
+          await loadGame(state.games[0].id);
+          state.view = "life";
+        } else state.view = "setup";
+        toast(t("welcome"));
+      },
+      { modal: true },
+    );
+    return;
+  }
+  if (form.id === "trade-form") {
+    await work(
+      async () => {
+        await act({
+          type: "trade",
+          assetId: values.assetId,
+          side: values.side,
+          quantity: Number(values.quantity),
+          leverage: values.side === "sell" ? 1 : Number(values.leverage),
+        });
+        closeDialog();
+      },
+      { modal: true },
+    );
+    return;
+  }
+  const type = form.dataset.form;
+  if (!type) return;
+  try {
+    if (type === "leaderboard") {
+      state.leaderboardFilter = {
+        mode: values.mode,
+        difficulty: values.difficulty,
+      };
+      await work(loadLeaderboard);
+      return;
+    }
+    let action = { type, ...values };
+    if (type === "transfer")
+      action = { type: values.type, amount: sen(values.amount) };
+    if (type === "take-loan")
+      action = { type, amount: sen(values.amount), term: Number(values.term) };
+    if (type === "buy-property")
+      action = {
+        type,
+        propertyType: values.propertyType,
+        financing: values.financing === "on",
+      };
+    if (type === "business-dividend")
+      action = {
+        type,
+        businessId: values.businessId,
+        amount: sen(values.amount),
+      };
+    await perform(action);
+  } catch (error) {
+    toast(errorText(error), true);
+  }
+});
+async function boot() {
+  try {
+    state.config = await api("/api/config");
+    state.user = (await api("/api/auth/me")).user;
+    if (state.user) {
+      await loadGames();
+      const previous = localStorage.getItem("investment-last-game"),
+        saved = state.games.find((g) => g.id === previous) || state.games[0];
+      if (saved) {
+        await loadGame(saved.id);
+        state.view = "life";
+      }
+    }
+    render();
+  } catch (error) {
+    root.innerHTML = `<main class="startup-error"><h1>${t("brand")}</h1><p role="alert">${escape(errorText(error))}</p><button class="button primary" id="reload">${t("refresh")}</button></main>`;
+    document.getElementById("reload").onclick = () => location.reload();
+  }
+}
+boot();

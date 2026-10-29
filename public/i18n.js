@@ -1,0 +1,509 @@
+let language = localStorage.getItem("investment-language") || "en";
+if (!["en", "zh"].includes(language)) language = "en";
+export const getLanguage = () => language;
+export function setLanguage(value) {
+  language = value === "zh" ? "zh" : "en";
+  localStorage.setItem("investment-language", language);
+  document.documentElement.lang = language === "zh" ? "zh-CN" : "en";
+}
+export const text = (value) =>
+  typeof value === "object" && value !== null
+    ? value[language] || value.en || ""
+    : String(value ?? "");
+const words = {
+  brand: ["Investment Game", "投资人生"],
+  tagline: ["PLAY YOUR FUTURE", "每个选择，塑造未来"],
+  home: ["Home", "首页"],
+  life: ["My life", "我的人生"],
+  market: ["Market", "市场"],
+  assets: ["Portfolio", "资产"],
+  property: ["Property", "房产"],
+  business: ["Business", "企业"],
+  bank: ["Bank", "银行"],
+  news: ["News", "新闻"],
+  report: ["Reports", "报告"],
+  leaderboard: ["Leaderboard", "排行榜"],
+  profile: ["My account", "我的账户"],
+  more: ["More", "更多"],
+  help: ["How to play", "玩法指南"],
+  language: ["Language", "语言"],
+  signin: ["Sign in", "登录"],
+  register: ["Create account", "注册账户"],
+  logout: ["Sign out", "退出登录"],
+  guest: ["Play as guest", "游客试玩"],
+  guestHint: [
+    "Guest progress stays in this browser session. Create an account for dependable sign-in later.",
+    "游客进度依赖此浏览器的登录会话。需要长期保存时，请注册账户。",
+  ],
+  heroTitle: [
+    "One month at a time.\nA whole life ahead.",
+    "一步一个月，\n走出自己的人生。",
+  ],
+  heroDescription: [
+    "Work, save, invest and build a life. Explore fictional markets, properties and small businesses — without real money.",
+    "工作、储蓄、投资，经营自己的财务人生。在虚构市场、房产和小企业中练习决策，无需真实资金。",
+  ],
+  start: ["Start a new life", "开启新人生"],
+  continue: ["Continue my journey", "继续我的人生"],
+  fourModes: ["4 life modes", "4 种人生模式"],
+  fourLevels: ["4 difficulties", "4 个难度"],
+  fifteenAssets: ["15 simulated assets", "15 种模拟资产"],
+  monthRhythm: ["One world. One monthly rhythm.", "一个世界，以月为节奏。"],
+  introPlan: ["Plan", "规划"],
+  introPlanBody: [
+    "Make choices at this month’s published prices.",
+    "根据本月已公布的价格做出选择。",
+  ],
+  introAdvance: ["Advance", "前进"],
+  introAdvanceBody: [
+    "Move 1 or 3 months, pausing for required decisions.",
+    "推进 1 或 3 个月，遇到必要决策时暂停。",
+  ],
+  introLearn: ["Learn", "复盘"],
+  introLearnBody: [
+    "See how your wealth compares with a savings benchmark.",
+    "观察自己的财富变化，并与保守基准比较。",
+  ],
+  educational: [
+    "Educational simulation · No real money · Configurable game assumptions",
+    "教育模拟 · 不使用真实资金 · 采用可调整的游戏参数",
+  ],
+  version: ["Proposal-aligned playable version", "按 proposal 开发的可玩版本"],
+  setupTitle: [
+    "Choose the chapter you want to play.",
+    "选择你想体验的人生篇章。",
+  ],
+  setupDescription: [
+    "Each mode has its own opening scenario. Full Life keeps your own assets at 45 and 60.",
+    "各模式采用独立的初始场景。完整人生到 45 和 60 岁时保留现有资产，不额外赠送。",
+  ],
+  mode: ["Life mode", "人生模式"],
+  difficulty: ["Difficulty", "难度"],
+  ruleset: ["Game type", "游戏类型"],
+  fullLife: ["Full Life", "完整人生"],
+  earlyCareer: ["Early Career", "职业起步"],
+  wealthBuilding: ["Wealth Building", "财富积累"],
+  retirement: ["Retirement", "退休生活"],
+  easy: ["Easy", "简单"],
+  normal: ["Normal", "普通"],
+  hard: ["Hard", "困难"],
+  expert: ["Expert", "专家"],
+  standard: ["Standard", "标准模式"],
+  free: ["Free", "自由模式"],
+  standardHint: [
+    "Fixed market and news path for each category. Completed runs can enter the leaderboard.",
+    "同一分类共用固定市场与新闻路径。完整完成后可进入排行榜。",
+  ],
+  freeHint: [
+    "A fresh scenario for exploration. Your results remain private.",
+    "用不同场景自由探索，结果仅自己可见。",
+  ],
+  difficultyHint: [
+    "Changes starting cash, salary and property ownership.",
+    "改变初始现金、工资和房产配置。",
+  ],
+  selectedLife: ["Your selected life", "你选择的人生"],
+  startCash: ["Starting cash", "初始现金"],
+  salary: ["Work salary", "工作收入"],
+  startProperty: ["Opening property", "初始房产"],
+  none: ["None", "无"],
+  startDebt: ["Opening debt", "初始负债"],
+  months: ["months", "个月"],
+  years: ["years", "岁"],
+  begin: ["Begin my life", "开始我的人生"],
+  noOpeningInvestments: [
+    "No opening stock, gold, crypto or commodity holdings. You decide what to buy.",
+    "初始不持有股票、黄金、加密资产或商品，由你决定何时买入。",
+  ],
+  dashboardTitle: ["Your month. Your move.", "你的月份，你的选择。"],
+  dashboardDescription: [
+    "Read the world, review your finances, then make your next move.",
+    "查看经济动态，梳理财务状况，再决定下一步。",
+  ],
+  age: ["Age", "年龄"],
+  month: ["Month", "月份"],
+  netWorth: ["Net worth", "净资产"],
+  realWealth: ["Inflation-adjusted wealth", "通胀调整后财富"],
+  cash: ["Spendable cash", "可用现金"],
+  savings: ["Savings", "储蓄存款"],
+  retirementBalance: ["Retirement savings", "退休储蓄"],
+  liabilities: ["Liabilities", "负债"],
+  income: ["Income", "收入"],
+  expenses: ["Expenses", "支出"],
+  monthlyLiving: ["Monthly living costs", "每月基本生活费"],
+  assetsTotal: ["Total assets", "总资产"],
+  propertyValue: ["Property value", "房产估值"],
+  businessValue: ["Business value", "企业估值"],
+  portfolioValue: ["Market holdings", "金融资产"],
+  autosaved: ["Progress saved automatically", "进度已自动保存"],
+  nextMonth: ["Next Month", "下个月"],
+  nextThree: ["Next 3 Months", "推进 3 个月"],
+  advanceHint: [
+    "Each month settles separately. Required events and unpaid bills pause progression.",
+    "每个月分别结算；遇到必要事件或未付账单会暂停推进。",
+  ],
+  thisMonth: ["This month", "本月经济"],
+  expansion: ["Expansion", "扩张"],
+  boom: ["Boom", "繁荣"],
+  recession: ["Recession", "衰退"],
+  recovery: ["Recovery", "复苏"],
+  marketStreet: ["Market Street", "投资街"],
+  propertyQuarter: ["Property Quarter", "房产区"],
+  businessAvenue: ["Business Avenue", "创业大道"],
+  visit: ["Explore", "进入"],
+  wealthJourney: ["Your wealth journey", "你的财富旅程"],
+  benchmark: ["Conservative benchmark", "保守基准"],
+  initial: ["Opening", "初始"],
+  retired: ["Retired", "已退休"],
+  completed: ["Completed", "已完成"],
+  active: ["In progress", "进行中"],
+  paused: ["Paused", "已暂停"],
+  bankrupt: ["Bankrupt", "已破产"],
+  pauseTitle: [
+    "A decision before the next chapter.",
+    "进入下一章前，先做一个决定。",
+  ],
+  remaining: ["Months remaining in this advance", "本次推进剩余月数"],
+  resolve: ["Resolve event", "处理事件"],
+  resume: ["Resume remaining months", "继续剩余月份"],
+  billTitle: ["Pause. Find a way through.", "先暂停，寻找解决方法。"],
+  billAmount: ["Unpaid bill liability", "未付账单负债"],
+  shortfall: ["Cash shortfall", "现金缺口"],
+  payBill: ["Settle bill", "支付账单"],
+  extendBill: ["Use one-month extension", "申请一次延期"],
+  declareBankruptcy: ["End run in bankruptcy", "结束本局并确认破产"],
+  billHint: [
+    "Use deposits or sell older holdings to cover the bill. A pending sale provides no immediate cash. One extension is available per bill; review its fee.",
+    "可提取存款或卖出已解锁资产支付账单。待成交出售不会立即提供现金。每笔账单可延期一次，请核对延期费用。",
+  ],
+  extensionUsed: ["Extension already used", "已使用过延期"],
+  marketTitle: ["Explore Market Street.", "逛一逛投资街。"],
+  marketDescription: [
+    "One tradable price per asset for the whole month. Prepared news is already reflected in prices.",
+    "每种资产本月采用一个可交易价格，已公布新闻的影响已计入价格。",
+  ],
+  all: ["All assets", "全部资产"],
+  stocks: ["Stocks", "股票"],
+  crypto: ["Crypto", "加密资产"],
+  gold: ["Gold", "黄金"],
+  commodities: ["Commodities", "商品"],
+  asset: ["Asset", "资产"],
+  price: ["Monthly price", "本月价格"],
+  change: ["Change", "涨跌"],
+  quantity: ["Quantity", "数量"],
+  holding: ["Holding", "持仓"],
+  trade: ["Trade", "交易"],
+  buy: ["Buy", "买入"],
+  sell: ["Sell", "卖出"],
+  reviewTrade: ["Review order", "预览订单"],
+  tradeValue: ["Trade value", "成交金额"],
+  transactionFee: ["Transaction fee", "交易费用"],
+  totalCost: ["Cash required", "所需现金"],
+  leverage: ["Leverage", "杠杆倍数"],
+  spot: ["Spot · 1×", "现货 · 1 倍"],
+  margin: ["Committed margin", "投入保证金"],
+  exposure: ["Market exposure", "市场敞口"],
+  lockHint: [
+    "New purchases cannot be voluntarily sold until next month. Forced liquidation is an exception.",
+    "当月新买入的资产下个月才能主动卖出，强制平仓除外。",
+  ],
+  leverageHint: [
+    "Long-only leverage: up to 2× for stocks, gold and commodities; 3× for BTC and ETH. Checked monthly. Loss is limited to your committed margin.",
+    "仅支持做多：股票、黄金、商品最高 2 倍；BTC、ETH 最高 3 倍。每月检查风险，最大亏损限于投入保证金。",
+  ],
+  eligible: ["Eligible to sell", "可卖出数量"],
+  locked: ["Locked this month", "当月锁定"],
+  averageCost: ["Average cost", "平均成本"],
+  positions: ["Leveraged positions", "杠杆持仓"],
+  closePosition: ["Close position", "平仓"],
+  noHoldings: [
+    "No market holdings yet. Your first investment is your choice.",
+    "暂无金融持仓，由你决定第一笔投资。",
+  ],
+  portfolioTitle: [
+    "Everything you own. Counted once.",
+    "每份资产，只计算一次。",
+  ],
+  balanceSheet: ["Your balance sheet", "你的资产负债表"],
+  positionEquity: [
+    "Only margin equity counts as an asset, not the full exposure.",
+    "净资产仅计入保证金权益，不重复计入全部敞口。",
+  ],
+  propertyTitle: [
+    "A place to own. A rhythm to understand.",
+    "拥有一处房产，理解一份现金流。",
+  ],
+  propertyDescription: [
+    "Own an apartment, condominium or shoplot. Rent depends on occupancy; loans and maintenance still matter.",
+    "投资公寓、住宅或商铺。租金取决于出租状态，贷款与维护费同样需要规划。",
+  ],
+  availableProperties: ["Explore properties", "可购房产"],
+  ownedProperties: ["Your properties", "我的房产"],
+  value: ["Estimated value", "估值"],
+  rent: ["Monthly rent", "月租金"],
+  maintenance: ["Maintenance", "维护费"],
+  occupied: ["Occupied", "已出租"],
+  vacant: ["Vacant", "空置中"],
+  financing: ["Use a mortgage", "使用按揭贷款"],
+  buyProperty: ["Buy property", "购买房产"],
+  listSale: ["List for sale", "挂牌出售"],
+  salePending: ["Sale pending", "待结算出售"],
+  propertySaleHint: [
+    "Sales complete at the next monthly settlement, after fees and outstanding mortgage. No cash is paid early.",
+    "出售在下次月度结算完成，扣除费用并偿还按揭；不会提前到账。",
+  ],
+  tenantHint: [
+    "After a vacancy, tenant search starts next month. Rent resumes the month after a successful match.",
+    "空置后从下个月开始寻找租客，匹配成功的再下个月恢复收租。",
+  ],
+  noProperties: [
+    "No property owned. Review the full cost before buying.",
+    "尚未持有房产，购入前请核对全部成本。",
+  ],
+  referencePrice: ["Reference price", "参考价格"],
+  businessTitle: ["Build something of your own.", "经营一家自己的企业。"],
+  businessDescription: [
+    "Revenue, expenses and retained cash stay in the business. Distributions transfer wealth rather than create it.",
+    "营业收入、成本和留存现金记录在企业账内。分红只是财富转移，不会凭空增加净资产。",
+  ],
+  ventures: ["Choose a venture", "选择企业类型"],
+  ownedBusinesses: ["Your businesses", "我的企业"],
+  startBusiness: ["Start business", "创办企业"],
+  startupCost: ["Startup cost", "启动资金"],
+  revenue: ["Monthly revenue", "每月营业收入"],
+  operatingCost: ["Operating costs", "经营成本"],
+  businessCash: ["Business cash", "企业现金"],
+  level: ["Level", "等级"],
+  dividend: ["Take distribution", "提取分红"],
+  advertise: ["Advertise", "投放广告"],
+  upgrade: ["Upgrade", "升级企业"],
+  noBusinesses: [
+    "No businesses yet. Start small and watch the cashflow.",
+    "暂无企业，可以从小规模经营开始。",
+  ],
+  businessHint: [
+    "Business valuation includes retained cash. A sale settles next month. Advertising and upgrades affect later results.",
+    "企业估值已包含留存现金，出售在下个月结算。广告与升级会影响后续经营结果。",
+  ],
+  bankTitle: ["Your money, in balance.", "让现金、储蓄与债务保持平衡。"],
+  bankDescription: [
+    "Move your own money between accounts, or review a fixed-rule loan. Transfers do not create income.",
+    "在账户间调配已有资金，或查看固定规则贷款。转账不计作新收入。",
+  ],
+  deposit: ["Deposit", "存入"],
+  withdraw: ["Withdraw", "提取"],
+  amount: ["Amount (RM)", "金额（RM）"],
+  transfer: ["Confirm transfer", "确认转账"],
+  takeLoan: ["Take loan", "申请贷款"],
+  repayLoan: ["Repay remaining balance", "偿还剩余本金"],
+  loans: ["Your loans", "我的贷款"],
+  principal: ["Outstanding principal", "剩余本金"],
+  annualRate: ["Annual interest rate", "年利率"],
+  term: ["Term (months)", "期限（月）"],
+  payment: ["Monthly repayment", "每月还款额"],
+  noLoans: ["No outstanding loans.", "当前没有贷款。"],
+  bankHint: [
+    "Principal repayments reduce both cash and debt. Only interest is an expense. Retirement withdrawals transfer existing savings.",
+    "偿还本金同时减少现金与负债，只有利息计入费用。退休储蓄提取也是已有资金转移。",
+  ],
+  newsTitle: [
+    "Read the world before your next move.",
+    "行动之前，先了解这个世界。",
+  ],
+  newsDescription: [
+    "Prepared fictional events shape the monthly economy. Each scheduled price effect is applied once.",
+    "预设的虚构事件影响月度经济，同一月份的价格影响只应用一次。",
+  ],
+  noNews: [
+    "A quiet month. Review the market before advancing.",
+    "本月暂时平静，推进前可以查看市场。",
+  ],
+  newsTemplates: [
+    "60 prepared bilingual news templates · No live news feed",
+    "60 条预设双语新闻模板 · 不接入实时新闻",
+  ],
+  reportTitle: ["Look at the life you built.", "回看你亲手经营的人生。"],
+  progressReport: ["Your journey so far.", "你目前走过的人生。"],
+  finalScore: ["Final score", "最终评分"],
+  wealthScore: ["Wealth", "财富"],
+  riskScore: ["Risk", "风险"],
+  cashFlowScore: ["Cash flow", "现金流"],
+  debtScore: ["Debt", "债务"],
+  scoreHint: [
+    "Each component is capped at 0–100. Weights: wealth 60%, risk 15%, cashflow 15%, debt 10%.",
+    "各分项限制在 0–100 分。权重为财富 60%、风险 15%、现金流 15%、债务 10%。",
+  ],
+  reportHint: [
+    "Charts use the saved opening snapshot and monthly closing records. The ending birthday adds no extra salary or bills.",
+    "图表使用初始快照与每月结算记录；到达结束生日后不多算工资或账单。",
+  ],
+  download: ["Download report", "下载报告"],
+  monthlyHistory: ["Monthly records", "月度记录"],
+  priceIndex: ["Price index", "物价指数"],
+  totalIncome: ["Total recorded income", "累计记录收入"],
+  totalExpenses: ["Total recorded expenses", "累计记录支出"],
+  drawdown: ["Maximum drawdown", "最大回撤"],
+  liquidations: ["Forced liquidations", "强制平仓次数"],
+  unpaidMonths: ["Months with unpaid bills", "出现欠账的月数"],
+  milestone: ["RM1 million real-wealth milestone", "实际净资产百万里程碑"],
+  reached: ["Reached", "已达成"],
+  notReached: ["Not yet reached", "尚未达成"],
+  pendingSaleReport: [
+    "Pending sales remain valued as assets with their debts; there is no early payment.",
+    "尚未成交的出售仍按资产估值并计入对应负债，不提前支付现金。",
+  ],
+  leaderboardTitle: [
+    "Different choices. A fair comparison.",
+    "不同选择，在公平规则下比较。",
+  ],
+  leaderboardDescription: [
+    "One best completed Standard score per player, life mode and difficulty. Free, unfinished and bankrupt runs stay private.",
+    "按人生模式和难度分别排名，每位玩家保留一个最佳已完成标准模式成绩。自由模式、未完成及破产记录不上榜。",
+  ],
+  rank: ["Rank", "名次"],
+  player: ["Player", "玩家"],
+  score: ["Score", "评分"],
+  noScores: [
+    "No completed Standard games in this category yet. Your story could be the first.",
+    "该分类暂无已完成的标准模式成绩，你可以成为第一位。",
+  ],
+  refresh: ["Refresh", "刷新"],
+  profileTitle: ["Pick up where your life paused.", "从上次停下的地方继续。"],
+  savedGames: ["Your saved lives", "我的存档"],
+  newGame: ["Start another life", "开启另一段人生"],
+  email: ["Email", "邮箱"],
+  password: ["Password", "密码"],
+  displayName: ["Display name", "玩家昵称"],
+  passwordHint: ["At least 8 characters", "至少 8 个字符"],
+  accountHint: [
+    "Accounts and saves are stored on this local server. Use a password unique to this educational game.",
+    "账户与存档保存在此本地服务器，请为这个教育游戏使用独立密码。",
+  ],
+  noGames: [
+    "No saved games yet. Start your first life.",
+    "暂无存档，开启你的第一段人生。",
+  ],
+  load: ["Resume", "继续"],
+  localAccount: ["Local game account", "本地游戏账户"],
+  guestAccount: ["Guest account", "游客账户"],
+  helpTitle: [
+    "Simple choices. Long-term consequences.",
+    "简单的选择，长期的影响。",
+  ],
+  helpSteps: [
+    "1. Choose a life stage, difficulty and game type.\n2. Review the month’s news, prices and your cashflow.\n3. Trade, save, borrow or manage property and businesses.\n4. Advance 1 or 3 months; resolve events and bills when paused.\n5. Compare saved wealth with the benchmark in your final report.",
+    "1. 选择人生阶段、难度和游戏类型。\n2. 查看本月新闻、价格和个人现金流。\n3. 交易、储蓄、借款或经营房产与企业。\n4. 推进 1 或 3 个月；暂停时先处理事件或账单。\n5. 在最终报告中与保守基准比较财富变化。",
+  ],
+  helpRules: [
+    "Retire at 60. Salary grows 2.5% each working year. Basic monthly living costs are RM2,000 at 22–44, RM3,000 at 45–59 and RM2,500 at 60–79. No extra starting assets are granted during Full Life.",
+    "60 岁固定退休。在职工资每年增长 2.5%。每月基本生活费：22–44 岁 RM2,000，45–59 岁 RM3,000，60–79 岁 RM2,500。完整人生过程中不会重新发放初始资产。",
+  ],
+  assumptions: ["Game balance settings", "游戏平衡参数"],
+  assumptionsHint: [
+    "Fees, market returns, inflation, event probabilities and business assumptions are educational settings, not predictions. See the project README for exact values and limitations.",
+    "手续费、市场收益、通胀、事件概率与企业经营数值属于教学用设定，不是现实预测。具体参数与限制见项目 README。",
+  ],
+  cancel: ["Cancel", "取消"],
+  confirm: ["Confirm", "确认"],
+  close: ["Close", "关闭"],
+  back: ["Back", "返回"],
+  review: ["Review decision", "确认本次决定"],
+  working: ["Saving your decision…", "正在保存你的决定…"],
+  saved: ["Decision saved.", "决定已保存。"],
+  welcome: ["Welcome. Your journey is ready.", "欢迎，你的人生之旅已准备好。"],
+  error: ["Unable to complete this action", "暂时无法完成此操作"],
+  loginRequired: [
+    "Please sign in or start as a guest.",
+    "请先登录或选择游客试玩。",
+  ],
+  completedHint: [
+    "This journey has ended. Review the report or start another life.",
+    "这段人生已结束，可以查看报告或开启新人生。",
+  ],
+  confirmMoney: [
+    "Review the amount and your available cash before confirming.",
+    "确认前请核对金额及可用现金。",
+  ],
+  confirmBankruptcy: [
+    "This ends the current game and produces a private bankruptcy report.",
+    "这会结束本局游戏并生成私人的破产报告。",
+  ],
+  confirmNew: [
+    "Start a new game? Existing saved lives remain in your account.",
+    "是否开始新游戏？已有存档会保留在账户中。",
+  ],
+  viewReport: ["View report", "查看报告"],
+  quote: ["Illustrative quote", "游戏报价"],
+  notFinancialAdvice: [
+    "A fictional learning activity, not personal financial advice.",
+    "虚构的学习体验，不构成个人理财建议。",
+  ],
+  noWeekly: [
+    "Monthly only. No weekly or live trading.",
+    "仅按月推进，没有每周或实时交易。",
+  ],
+};
+export function t(key) {
+  const entry = words[key];
+  return entry ? entry[language === "zh" ? 1 : 0] : key;
+}
+export const modeLabel = (mode) =>
+  t(
+    {
+      "full-life": "fullLife",
+      "early-career": "earlyCareer",
+      "wealth-building": "wealthBuilding",
+      retirement: "retirement",
+    }[mode] || mode,
+  );
+export const money = (value) =>
+  `RM ${new Intl.NumberFormat(language === "zh" ? "zh-CN" : "en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format((Number(value) || 0) / 100)}`;
+export const number = (value) =>
+  new Intl.NumberFormat(language === "zh" ? "zh-CN" : "en-MY", {
+    maximumFractionDigits: 6,
+  }).format(Number(value) || 0);
+export const percent = (value) => `${((Number(value) || 0) * 100).toFixed(1)}%`;
+export function errorText(error) {
+  const message = error?.message || String(error);
+  if (language === "en") return message;
+  const translations = [
+    [
+      /password.*(8|short|long|characters)/i,
+      "密码须符合长度要求（至少 8 个字符）。",
+    ],
+    [/invalid.*(email|credentials)|incorrect.*password/i, "邮箱或密码不正确。"],
+    [
+      /already.*(email|account)|email.*(exists|registered)/i,
+      "该邮箱已注册，请登录。",
+    ],
+    [
+      /not authenticated|authentication|sign in|unauthorized|session/i,
+      "登录会话已过期，请重新登录。",
+    ],
+    [/not found|not your|forbidden/i, "找不到该记录，或你无权访问。"],
+    [/insufficient|not enough/i, "可用现金、可卖持仓或账户余额不足。"],
+    [
+      /locked|same month|eligible/i,
+      "当月新买入的资产尚未解锁，请下个月再卖出。",
+    ],
+    [/complete|ended|bankrupt/i, "本局已结束，无法继续操作。"],
+    [
+      /paused|unpaid|bill|pending event|resolve/i,
+      "请先处理当前事件或未付账单。",
+    ],
+    [/extension/i, "本笔账单已使用延期或不符合延期条件。"],
+    [/rate limit|too many/i, "操作过于频繁，请稍后重试。"],
+    [
+      /invalid|positive|quantity|amount|term|required/i,
+      "输入有误，请检查数量、金额、期限或必填项。",
+    ],
+    [
+      /failed to fetch|network|fetch/i,
+      "无法连接游戏服务器，请确认服务正在运行。",
+    ],
+  ];
+  return (
+    translations.find(([pattern]) => pattern.test(message))?.[1] ||
+    `${t("error")}。${message}`
+  );
+}

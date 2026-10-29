@@ -1,19 +1,24 @@
-# V12.6 CAT404 summary → scaffold
+# Proposal implementation mapping
 
-| Requirement supplied by user | Initial implementation |
+Source: the CAT404 proposal supplied on 30 October 2026. This is an implementation mapping, not a claim of academic acceptance or completed user evaluation.
+
+| Section | Behavior in v0.2 |
 | --- | --- |
-| Simple English web game | Plain responsive HTML/CSS/JS dashboard |
-| About 20 independent players | Isolated UUID game states; integration test creates 20 sessions; no load benchmark |
-| Four life windows | Implemented exact start/end birthdays |
-| Four difficulties | Selectable; provisional volatility multipliers |
-| Retirement at 60 | Salary becomes zero at 60 |
-| Salary +2.5% annually | Rounded integer-sen increase every 12 elapsed months |
-| RM2,000 / 3,000 / 2,500 expenses | Exact age bands implemented |
-| 1 / 3 month advancement | Monthly market and finance settlement in both cases |
-| 15 financial assets | Provisional catalog and buy/sell scaffold; full proposal catalog needs checking |
-| Property / business / news | Explicit planned descriptors; no mechanics implemented |
-| Standard / Free | Both recorded; custom Free behavior deferred |
-| Saves | Manual server JSON snapshot and browser resume ID |
-| Final report | Core totals at mode end and downloadable JSON; advanced evaluation deferred |
+| 5.1 modes | Exact four age windows and total months; endpoint excludes extra salary/bills |
+| 5.2 starting finances | Exact difficulty cash/salary; later salary compounding; no initial investments |
+| 5.3 costs/property | Exact fixed living budgets, opening occupied properties and Expert retirement mortgage; no Full Life resets |
+| 5.4 monthly loop | Identical one/three month procedure, pauses and saved remaining months |
+| 5.5 investments | Exact category counts, monthly prices, one fee, locked new holdings, long-only 2×/3× capped-margin leverage |
+| 5.6 economy/news | Four phases, 60 prepared bilingual templates, once-per-month effects, action-independent Standard path |
+| 5.7 property/business | Occupancy/rent/search, next-settlement sales, mortgages, retained business cash, distributions, ads/upgrades |
+| 5.8 bank/career | Savings, amortized loans, retirement transfers, salary changes/bonus; salary stops at 60 |
+| 5.9 difficulty | One bill liability per month, no duplicate income/charge on restore, one extension fee, bankruptcy report |
+| 5.10 records/report | Opening + closing snapshots, nominal/real chart, benchmark, balances, cashflow and CSV export |
+| 5.11 score/leaderboard | Exact weighted formulas with caps; one best completed Standard score per mode/difficulty, Free private |
+| 5.12 web/account/save | Independent local accounts/guests, hashed passwords, durable sessions, atomic autosave and request replay |
+| 5.13 verification | Core/API/view regressions, real browser full run, 20-account short concurrent exercise |
+| UI revision | Navy/teal/ivory, separate readable labels, original isometric SVG world, desktop/sidebar and phone/bottom navigation; English/Chinese switch |
 
-No complete proposal file was available in the referenced chat preview. Replace provisional assumptions only after comparing with the actual frozen document. This framework is intended for iterative development, not a finished submission or audited educational economy.
+Balance details absent from the proposal are explicit in config and CORE-NOTES. Stock names are fictional implementation choices. The benchmark earns conservative interest on positive cash and keeps opening properties occupied. Required event pauses currently use career reviews; property vacancy changes are recorded automatically. Free varies the scenario and stores private results, with no custom rule editor. Orders use integer game units, including crypto. These are transparent simplifications for the educational MVP.
+
+Still outside this delivery: sustained production load tests, external deployment/HTTPS/backups, email verification/password reset, real user study, economic balancing research and university acceptance testing. No real data feeds or payments are connected. Legacy anonymous v1 saves are not migrated.

@@ -1,8 +1,20 @@
 {
   "name": "investment-game",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=24" },
-  "scripts": { "start": "node server/index.js", "dev": "node --watch server/index.js", "test": "node --test", "check": "node --check server/index.js && node --check server/app.js && node --check server/core/simulation.js && node --check public/app.js" }
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "test": "node --test",
+    "check": "node scripts/check.mjs",
+    "test:browser": "node scripts/browser-check.mjs",
+    "test:load": "node scripts/load-check.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.64.1"
+  }
 }

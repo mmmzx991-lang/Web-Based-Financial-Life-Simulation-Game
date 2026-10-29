@@ -1,26 +1,45 @@
-# HTTP API
+# API v2
 
-All JSON money values are **integer sen** (RM1 = 100 sen). Game creation and state mutations return `{id, game, summary}`. Errors return `{error}` with 400, 404, 405, 413 or 500. Requests are limited to 16 KiB.
+All money is integer sen (RM1 = 100 sen). Trade quantities are positive integer simulated units. Names and prepared events are `{en,zh}` objects. Dynamic interface copy is localized by the browser. Authentication uses an opaque HttpOnly, SameSite=Lax cookie. The default server is local-only.
 
-| Method | Route | Body / response |
+| Method | Path | Body / result |
 | --- | --- | --- |
-| GET | `/api/health` | `{status:"ok"}` |
-| GET | `/api/config` | Modes, difficulties, rulesets, 15 assets, planned systems |
-| POST | `/api/games` | Optional `{mode:"full-life",difficulty:"normal",ruleset:"standard"}` |
-| GET | `/api/games/:id` | Current in-memory game, or load last saved game after restart |
-| POST | `/api/games/:id/advance` | `{months:1}` or `{months:3}` |
-| POST | `/api/games/:id/trade` | `{assetId:"gold",side:"buy",quantity:1}`; side may be `sell` |
-| POST | `/api/games/:id/save` | `{}`; writes current state to ignored `data/:id.json` |
-| GET | `/api/games/:id/report` | Age, completion, cash, portfolio, net worth, income, expenses |
+| GET | `/api/health` | `{status:"ok",version:2}` |
+| GET | `/api/config` | modes, difficulties, rulesets, assets, propertyTypes, businessTypes, settings, tradeFeeRate |
+| GET | `/api/auth/me` | `{user:null}` or public account information |
+| POST | `/api/auth/register` | `{displayName,email,password}`; creates account or upgrades current guest |
+| POST | `/api/auth/login` | `{email,password}` |
+| POST | `/api/auth/guest` | `{}`; creates a distinct guest identity |
+| POST | `/api/auth/logout` | `{}`; revokes session |
+| GET | `/api/games` | `{games:[...]}` owned by current account |
+| POST | `/api/games` | `{mode,difficulty,ruleset}` → `{id,game,summary}` |
+| GET | `/api/games/:id` | owned saved state → `{id,game,summary}` |
+| POST | `/api/games/:id/action` | `{requestId:UUID,action:{type,...}}` → `{id,game,summary}` |
+| POST | `/api/games/:id/save` | `{}`; compatibility acknowledgment, all successful actions already save |
+| GET | `/api/games/:id/report` | owned report with score and saved history |
+| GET | `/api/leaderboard?mode=...&difficulty=...` | public completed Standard category; entries contain a score object with total |
 
-Modes: `full-life`, `early-career`, `wealth-building`, `retirement`.
-Difficulties: `easy`, `normal`, `hard`, `expert`. Rulesets: `standard`, `free`.
+Valid modes: `full-life`, `early-career`, `wealth-building`, `retirement`. Difficulties: `easy`, `normal`, `hard`, `expert`. Types: `standard`, `free`.
 
-Example (PowerShell):
+## Actions
 
-```powershell
-$game = Invoke-RestMethod http://127.0.0.1:3000/api/games -Method Post -ContentType application/json -Body '{"mode":"early-career"}'
-Invoke-RestMethod "http://127.0.0.1:3000/api/games/$($game.id)/advance" -Method Post -ContentType application/json -Body '{"months":3}'
-```
+| type | Other fields |
+| --- | --- |
+| `advance` | `months:1` or `3` |
+| `resume`, `acknowledge-event`, `pay-bill`, `extend-bill`, `declare-bankruptcy` | none |
+| `trade` | assetId, side buy/sell, quantity, optional leverage 1/2/3 within category cap |
+| `close-position` | positionId |
+| `savings-deposit`, `savings-withdraw`, `retirement-deposit`, `retirement-withdraw` | amount in sen |
+| `take-loan` | amount, term 12/24/36/60 |
+| `repay-loan` | loanId |
+| `buy-property` | propertyType apartment/condominium/shoplot, financing boolean |
+| `sell-property` | propertyId |
+| `start-business` | businessType coffee-shop/online-store/tech-startup |
+| `business-dividend` | businessId, amount |
+| `business-advertise`, `business-upgrade`, `sell-business` | businessId |
 
-Actions are synchronous per game after request parsing and use immutable core transitions; 3-month steps settle all intermediate months. Saving is explicit. A GET returns current live progress if present, otherwise the saved snapshot. Manual rollback/import and save lists are future work. Report fields are available during play; `completed:true` makes the report final. Completed games reject further trades or advances.
+State transitions and request-response replay are persisted together. Repeating the same request ID and action returns its original response, including the original append-only history prefix, without settling again. A new action needs a new request ID. The frontend retains a pending action's ID after a network failure so retries reuse it. Reusing an ID for another action is rejected. Ownership checks apply to every private game route.
+
+`status` is active, paused, completed or bankrupt. `history[0]` is the opening snapshot; subsequent records are completed months. `marketMonth` can be one ahead of elapsedMonths while a bill blocks completion. `remainingAdvance` and pending decisions are saved. `unpaidBill.amount` is the remaining liability after available cash was applied. After an extension, resume the following due month; manual bankruptcy is offered only for an actually pending settlement, ensuring final costs enter history. See CORE-NOTES for the exact sequence.
+
+Errors are `{error,code?}`. Typical status: 400 invalid action, 401 login required, 404 absent/other-owner game, 409 conflicting replay or duplicate account, 413 oversized body, 429 auth throttling. Bodies are limited to 16 KiB. Cross-origin mutations are rejected. API errors remain English internally; the interface translates common errors for Chinese users.
