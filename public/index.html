@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Investment Game</title><link rel="stylesheet" href="/styles.css"><script type="module" src="/app.js"></script></head>
+<body>
+<header><a href="/" class="brand">IG<span>Investment Game</span></a><span class="badge">CAT404 · Initial framework</span></header>
+<main>
+<section class="intro"><p class="eyebrow">A FINANCIAL LIFE SIMULATION</p><h1>Small decisions.<br>A lifetime of possibilities.</h1><p>Build your financial future, one month at a time.</p></section>
+<section id="setup" class="panel"><h2>Start your journey</h2><form id="new-game"><div class="form-grid">
+<label>Life mode<select name="mode"><option value="full-life">Full Life · 22–80</option><option value="early-career">Early Career · 22–45</option><option value="wealth-building">Wealth Building · 45–60</option><option value="retirement">Retirement · 60–80</option></select></label>
+<label>Difficulty<select name="difficulty"><option value="easy">Easy</option><option value="normal" selected>Normal</option><option value="hard">Hard</option><option value="expert">Expert</option></select></label>
+<label>Ruleset<select name="ruleset"><option value="standard">Standard</option><option value="free">Free · framework only</option></select></label>
+</div><button type="submit">Begin simulation →</button> <button type="button" id="resume" class="secondary">Resume saved game</button></form><p class="hint">Free mode is selectable; custom rules are planned. Saved games are specific to this server and browser.</p></section>
+<p id="status" role="status" aria-live="polite"></p>
+<section id="dashboard" hidden>
+<div class="section-heading"><div><p class="eyebrow" id="game-mode"></p><h2 id="age"></h2></div><div class="actions"><button id="save" class="secondary">Save game</button><button id="advance-one">+1 month</button><button id="advance-three">+3 months</button></div></div>
+<div id="metrics" class="metrics"></div>
+<section class="panel"><div class="section-heading"><h2>Your portfolio</h2><span class="hint">Illustrative market · 15 asset types</span></div><div class="table-wrap"><table><thead><tr><th>Asset</th><th>Price</th><th>Units</th><th>Trade</th></tr></thead><tbody id="assets"></tbody></table></div></section>
+<div class="system-grid" id="systems"></div>
+<section class="panel"><div class="section-heading"><h2 id="report-title">Journey report</h2><button id="download" class="secondary">Download report</button></div><p id="report-text"></p><h3>Recent monthly settlements</h3><ul id="history"></ul></section>
+</section>
+<footer>Educational simulation · All amounts in Malaysian ringgit (RM). Initial framework; market parameters are provisional.</footer>
+</main></body></html>
