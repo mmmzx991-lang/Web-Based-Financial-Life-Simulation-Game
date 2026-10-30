@@ -28,7 +28,7 @@ Valid modes: `full-life`, `early-career`, `wealth-building`, `retirement`. Diffi
 | `advance` | `months:1` or `3` |
 | `resume`, `acknowledge-event`, `pay-bill`, `extend-bill`, `declare-bankruptcy` | none |
 | `trade` | assetId, side buy/sell, quantity, optional leverage 1/2/3 within category cap |
-| `close-position` | positionId |
+| `close-position` | positionId, optional quantity (omitted closes all); whole units except crypto 0.01 steps |
 | `savings-deposit`, `savings-withdraw`, `retirement-deposit`, `retirement-withdraw` | amount in sen |
 | `take-loan` | amount, term 12/24/36/60 |
 | `repay-loan` | loanId |
@@ -43,3 +43,5 @@ State transitions and request-response replay are persisted together. Repeating 
 `status` is active, paused, completed or bankrupt. `history[0]` is the opening snapshot; subsequent records are completed months. `marketMonth` can be one ahead of elapsedMonths while a bill blocks completion. `remainingAdvance` and pending decisions are saved. `unpaidBill.amount` is the remaining liability after available cash was applied. After an extension, resume the following due month; manual bankruptcy is offered only for an actually pending settlement, ensuring final costs enter history. See CORE-NOTES for the exact sequence.
 
 Errors are `{error,code?}`. Typical status: 400 invalid action, 401 login required, 404 absent/other-owner game, 409 conflicting replay or duplicate account, 413 oversized body, 429 auth throttling. Bodies are limited to 16 KiB. Cross-origin mutations are rejected. API errors remain English internally; the interface translates common errors for Chinese users.
+
+Position state additionally exposes `positionVersion` and optional `roundingAdjustment`. `positionHistory` retains the most recent 200 manual/forced closures: month, quantity, allocated margin/equity, entry/exit prices, P&L before exit fee, exit fee and net cash proceeds. Partial close keeps the same position ID, entry price and unlock month. Tiny partial closes leaving zero margin are rejected.

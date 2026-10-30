@@ -1,6 +1,14 @@
+import { positionMetrics, closeQuote } from "./leverage-math.js";
 import { orderValue } from "./order-math.js";
 import { t, setLanguage, getLanguage, text, money, errorText } from "./i18n.js";
-import { pages, shell, authDialog, tradeDialog, escape } from "./views.js";
+import {
+  pages,
+  shell,
+  authDialog,
+  tradeDialog,
+  closePositionDialog,
+  escape,
+} from "./views.js";
 import { exportReport } from "./export-report.js";
 import { switchUser } from "./account-state.js";
 const state = {
@@ -72,14 +80,17 @@ function render() {
     ["completed", "bankrupt"].includes(state.session.game.status);
   document
     .querySelectorAll(
-      "[data-action],[data-trade],[data-start-game],[data-load]",
+      "[data-action],[data-trade],[data-close-position],[data-start-game],[data-load]",
     )
     .forEach(
       (b) =>
         (b.disabled =
           state.busy ||
           (ended &&
-            (b.hasAttribute("data-action") || b.hasAttribute("data-trade")))),
+            (b.hasAttribute("data-action") ||
+              b.hasAttribute("data-trade") ||
+              b.hasAttribute("data-close-position"))) ||
+          b.dataset.locked === "true"),
     );
   document
     .querySelectorAll('form[data-form] button[type="submit"]')
@@ -233,9 +244,74 @@ function updateQuote() {
   const asset = state.config.assets.find((a) => a.id === dialogAsset);
   const value = orderValue(asset, q, g.prices[dialogAsset]),
     fee = Math.max(1, Math.round(value * (state.config.tradeFeeRate ?? 0.002)));
-  document.getElementById("trade-quote").innerHTML =
-    `<div class="detail-row"><span>${t("tradeValue")}</span><strong>${money(value)}</strong></div><div class="detail-row"><span>${t("transactionFee")}</span><strong>${money(fee)}</strong></div><div class="detail-row"><span>${side === "buy" ? (leverage > 1 ? t("margin") : t("totalCost")) : t("cash")}</span><strong>${money(side === "buy" ? Math.max(1, Math.round(value / leverage)) + fee : Math.max(0, value - fee))}</strong></div>`;
+  const row = (label, value) =>
+    `<div class="detail-row"><span>${t(label)}</span><strong>${value}</strong></div>`;
+  const margin = Math.max(1, Math.round(value / leverage));
+  let detail = row("tradeValue", money(value));
+  if (side === "buy" && leverage > 1) {
+    const p = {
+        assetId: asset.id,
+        quantity: q,
+        entryPrice: g.prices[dialogAsset],
+        margin,
+      },
+      m = positionMetrics(asset, p, p.entryPrice);
+    detail +=
+      row("entryMargin", money(margin)) +
+      row("maxLoss", money(margin)) +
+      row(
+        "liquidationPrice",
+        m.liquidationPrice === null ? "—" : money(m.liquidationPrice),
+      );
+    detail += row(
+      "pnlScenario",
+      `−10%: ${money(-Math.min(margin, orderValue(asset, q, Math.round(p.entryPrice * 0.1))))} / +10%: ${money(orderValue(asset, q, Math.round(p.entryPrice * 0.1)))}`,
+    );
+    detail += `<p class="small muted">${t("liquidationHint")}</p>`;
+  }
+  detail +=
+    row("transactionFee", money(fee)) +
+    row(
+      side === "buy" ? "cashRequired" : "cash",
+      money(side === "buy" ? margin + fee : Math.max(0, value - fee)),
+    );
+  if (side === "buy" && margin + fee > g.cash)
+    detail += `<p class="negative">${t("cashShort")}</p>`;
+  document.getElementById("trade-quote").innerHTML = detail;
 }
+
+function updateCloseQuote() {
+  const form = document.getElementById("close-position-form");
+  if (!form) return;
+  const g = state.session.game,
+    p = g.positions.find((p) => p.id === form.elements.positionId.value),
+    a = state.config.assets.find((a) => a.id === p.assetId);
+  const row = (key, value) =>
+    `<div class="detail-row"><span>${t(key)}</span><strong>${value}</strong></div>`;
+  try {
+    const q = closeQuote(
+      a,
+      p,
+      g.prices[p.assetId],
+      Number(form.elements.quantity.value),
+      state.config.tradeFeeRate ?? 0.002,
+    );
+    document.getElementById("close-quote").innerHTML =
+      row("marginReleased", money(q.margin)) +
+      row("grossEquity", money(q.equity)) +
+      row("closedPnl", money(q.pnl - q.fee)) +
+      row("transactionFee", money(q.fee)) +
+      row("remainingQuantity", String(q.remaining?.quantity || 0)) +
+      row("closeProceeds", money(q.proceeds));
+    document.getElementById("dialog-error").textContent = "";
+    form.querySelector('[type="submit"]').disabled = state.busy;
+  } catch {
+    document.getElementById("close-quote").innerHTML = "";
+    document.getElementById("dialog-error").textContent = t("closeInvalid");
+    form.querySelector('[type="submit"]').disabled = true;
+  }
+}
+
 function actionFromElement(el) {
   const action = { type: el.dataset.action };
   for (const [key, value] of Object.entries(el.dataset)) {
@@ -348,6 +424,20 @@ document.addEventListener("click", async (e) => {
     });
     return;
   }
+  if (el.dataset.closePosition) {
+    openDialog(
+      closePositionDialog(state, el.dataset.closePosition),
+      "close-position",
+    );
+    updateCloseQuote();
+    return;
+  }
+  if (el.hasAttribute("data-close-all")) {
+    const form = document.getElementById("close-position-form");
+    form.elements.quantity.value = form.elements.quantity.max;
+    updateCloseQuote();
+    return;
+  }
   if (el.dataset.trade) {
     dialogAsset = el.dataset.trade;
     openDialog(tradeDialog(state, dialogAsset), "trade");
@@ -385,6 +475,7 @@ document.addEventListener("click", async (e) => {
 });
 dialog.addEventListener("input", () => {
   if (dialogType === "trade") updateQuote();
+  if (dialogType === "close-position") updateCloseQuote();
 });
 document.addEventListener("input", (event) => {
   if (event.target.id !== "market-search") return;
@@ -425,6 +516,20 @@ document.addEventListener("submit", async (e) => {
           state.view = "life";
         } else state.view = "setup";
         toast(t("welcome"));
+      },
+      { modal: true },
+    );
+    return;
+  }
+  if (form.id === "close-position-form") {
+    await work(
+      async () => {
+        await act({
+          type: "close-position",
+          positionId: values.positionId,
+          quantity: Number(values.quantity),
+        });
+        closeDialog();
       },
       { modal: true },
     );

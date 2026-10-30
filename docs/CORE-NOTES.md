@@ -48,3 +48,9 @@ Real balances are nominal balances divided by the price index, rounded to sen. F
 ## Verification
 
 `node --test tests/simulation.test.js tests/core-finance.test.js tests/core-regression.test.js` covers exact openings/catalog, locks, caps/liquidations, transfers, amortization, tenant timing, sales, retained business accounting, event pauses, bills/extensions, serialized pending-month recovery, real balances/score, deterministic action-independent markets, single/three-month equivalence and complete easy runs across all four endpoints.
+
+## Leverage refinement
+
+Browser and server use the pure `public/leverage-math.js` close quote. Partial closing allocates integer margin and equity proportionally; the remaining position carries a rounding adjustment so allocated equity plus residual equity exactly matches the original. Closing in parts cannot create sen. The liquidation estimate binary-searches the highest integer-sen price meeting the existing 15% equity/margin rule and is not a guaranteed execution price.
+
+New positions (`positionVersion:2`) pay the same 0.2% exposure-based exit fee on manual and forced closure, capped at available position equity. Existing positions without this flag retain their legacy forced fee on equity. Entry fee remains separately expensed. History reports P&L after exit fee but excludes the already-paid entry fee; financial reports retain both. No funding interest or shorts are added.

@@ -36,7 +36,8 @@ export const positionEquity = (game, p) =>
         p.assetId,
         p.quantity,
         game.prices[p.assetId] - p.entryPrice,
-      ),
+      ) +
+      (p.roundingAdjustment || 0),
   );
 export function values(game) {
   const portfolioValue =

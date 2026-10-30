@@ -1,3 +1,4 @@
+import { holdingValue } from "./quantities.js";
 import {
   ASSETS,
   BUSINESS_TYPES,
@@ -315,12 +316,40 @@ function settleMonth(game) {
   for (const position of [...game.positions]) {
     const equity = positionEquity(game, position);
     if (equity <= position.margin * SETTINGS.liquidationEquityRatio) {
-      const cost = Math.min(equity, fee(equity));
+      const cost = Math.min(
+        equity,
+        fee(
+          position.positionVersion === 2
+            ? holdingValue(
+                position.assetId,
+                position.quantity,
+                game.prices[position.assetId],
+              )
+            : equity,
+        ),
+      );
       game.cash += equity - cost;
       ledger.fees += cost;
       ledger.expenses += cost;
       game.positions = game.positions.filter((p) => p.id !== position.id);
       game.stats.forcedLiquidations++;
+      game.positionHistory = [
+        ...(game.positionHistory || []),
+        {
+          positionId: position.id,
+          assetId: position.assetId,
+          kind: "forced",
+          month: target,
+          quantity: position.quantity,
+          entryPrice: position.entryPrice,
+          exitPrice: game.prices[position.assetId],
+          margin: position.margin,
+          equity,
+          fee: cost,
+          proceeds: equity - cost,
+          pnl: equity - position.margin,
+        },
+      ].slice(-200);
       ledger.events.push({
         id: `liquidation-${position.id}-${target}`,
         type: "forced-liquidation",

@@ -146,6 +146,46 @@ try {
     path: join(screenshots, "desktop-markets-en.png"),
     fullPage: true,
   });
+  await page.locator('[data-market-group="crypto"]').click();
+  await page.locator('[data-trade="bitcoin"]').click();
+  await page.locator('#trade-form [name="quantity"]').fill("0.03");
+  await page.locator('#trade-form [name="leverage"]').selectOption("3");
+  assert.match(
+    await page.locator("#trade-quote").innerText(),
+    /Initial margin/,
+  );
+  assert.match(
+    await page.locator("#trade-quote").innerText(),
+    /Estimated liquidation/,
+  );
+  await page.locator('#trade-form button[type="submit"]').click();
+  await page.locator("#dialog").waitFor({ state: "hidden" });
+  await nav("assets");
+  assert.equal(await page.locator("[data-close-position]").isDisabled(), true);
+  await nav("life");
+  await action('[data-action="advance"][data-months="1"]');
+  await nav("assets");
+  assert.equal(await page.locator("[data-close-position]").isEnabled(), true);
+  assert.match(
+    await page.locator(".position-card").innerText(),
+    /Position equity|Unrealized/,
+  );
+  await page.screenshot({
+    path: join(screenshots, "desktop-positions-en.png"),
+    fullPage: true,
+  });
+  await page.locator("[data-close-position]").click();
+  await page.locator('#close-position-form [name="quantity"]').fill("0.01");
+  const beforePartial = await currentGame();
+  await page.locator('#close-position-form button[type="submit"]').click();
+  await page.locator("#dialog").waitFor({ state: "hidden" });
+  const afterPartial = await currentGame();
+  assert.equal(afterPartial.game.positions[0].quantity, 0.02);
+  assert.equal(afterPartial.game.positionHistory.at(-1).quantity, 0.01);
+  assert.equal(
+    afterPartial.game.cash - beforePartial.game.cash,
+    afterPartial.game.positionHistory.at(-1).proceeds,
+  );
   await nav("bank");
   await page
     .locator('[data-form="transfer"]')
@@ -213,6 +253,24 @@ try {
     );
   }
   await noOverflow();
+  await page.locator('.mobile-nav [data-view="assets"]').click();
+  await noOverflow();
+  await page.screenshot({
+    path: join(screenshots, "mobile-positions-zh.png"),
+    fullPage: true,
+  });
+  await page.locator("[data-close-position]").click();
+  assert.equal(
+    await page.locator('#close-position-form [name="quantity"]').inputValue(),
+    "0.02",
+  );
+  await page.screenshot({
+    path: join(screenshots, "mobile-close-preview-zh.png"),
+    fullPage: true,
+  });
+  await page.locator('#close-position-form button[type="submit"]').click();
+  await page.locator("#dialog").waitFor({ state: "hidden" });
+  assert.equal((await currentGame()).game.positions.length, 0);
   for (const id of ["market", "assets", "news", "more"]) {
     await page.locator(`.mobile-nav [data-view="${id}"]`).click();
     await page.waitForFunction(
@@ -223,10 +281,20 @@ try {
   await page.locator('.mobile-nav [data-view="market"]').click();
   await page.locator('[data-market-group="crypto"]').click();
   await noOverflow();
-  await page.screenshot({path:join(screenshots,"mobile-markets-zh.png"),fullPage:true});
+  await page.screenshot({
+    path: join(screenshots, "mobile-markets-zh.png"),
+    fullPage: true,
+  });
   await page.locator('[data-trade="bitcoin"]').click();
-  assert.ok(await page.locator("#dialog").evaluate(el=>el.scrollWidth <= el.clientWidth+1));
-  await page.screenshot({path:join(screenshots,"mobile-crypto-detail-zh.png"),fullPage:true});
+  assert.ok(
+    await page
+      .locator("#dialog")
+      .evaluate((el) => el.scrollWidth <= el.clientWidth + 1),
+  );
+  await page.screenshot({
+    path: join(screenshots, "mobile-crypto-detail-zh.png"),
+    fullPage: true,
+  });
   await page.locator("#dialog-close").click();
   for (const id of [
     "property",
@@ -346,7 +414,7 @@ try {
         mobile: "390x844",
         fullRunMonths: 276,
         checks:
-          "guest, setup, trade lock, 0.01 crypto buy/sell, market categories/search/sort, savings, business, event pause, account upgrade, reload, every mobile view, final report and leaderboard",
+          "guest, setup, trade lock, 0.01 crypto buy/sell, market categories/search/sort, leverage margin/liquidation previews, locked positions, partial/full close, savings, business, event pause, account upgrade, reload, every mobile view, final report and leaderboard",
         screenshots,
       },
       null,

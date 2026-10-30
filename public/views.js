@@ -1,3 +1,4 @@
+import { positionMetrics } from "./leverage-math.js";
 import { orderValue } from "./order-math.js";
 import {
   t,
@@ -291,23 +292,9 @@ export function portfolio(state) {
           }),
         )
       : empty(t("noHoldings"))
-  }</section><section class="panel"><h2>${t("positions")}</h2><p class="small muted">${t("positionEquity")}</p>${
-    g.positions?.length
-      ? rowsTable(
-          [t("asset"), t("leverage"), t("margin"), t("exposure"), ""],
-          g.positions.map(
-            (p) =>
-              `<tr><td>${E(text(state.config.assets.find((a) => a.id === p.assetId)?.name || p.assetId))}</td><td>${p.leverage}×</td><td>${money(p.margin)}</td><td>${money(
-                orderValue(
-                  state.config.assets.find((a) => a.id === p.assetId),
-                  p.quantity,
-                  g.prices[p.assetId],
-                ),
-              )}</td><td>${actionButton(t("closePosition"), "close-position", { positionId: p.id }, "secondary compact")}</td></tr>`,
-          ),
-        )
-      : empty(t("none"))
-  }</section><section class="panel"><h2>${t("balanceSheet")}</h2>${line(t("cash"), money(g.cash))}${line(t("savings"), money(g.savings))}${line(t("retirementBalance"), money(g.retirementBalance))}${line(t("portfolioValue"), money(s.portfolioValue))}${line(t("propertyValue"), money(s.propertyValue))}${line(t("businessValue"), money(s.businessValue))}${line(t("liabilities"), money(s.liabilities))}${line(t("netWorth"), money(s.netWorth))}</section>`;
+  }</section><section class="panel"><h2>${t("positions")}</h2><p class="small muted">${t("isolatedLong")}</p>${positionCards(
+    state,
+  )}</section><section class="panel"><h2>${t("balanceSheet")}</h2>${line(t("cash"), money(g.cash))}${line(t("savings"), money(g.savings))}${line(t("retirementBalance"), money(g.retirementBalance))}${line(t("portfolioValue"), money(s.portfolioValue))}${line(t("propertyValue"), money(s.propertyValue))}${line(t("businessValue"), money(s.businessValue))}${line(t("liabilities"), money(s.liabilities))}${line(t("netWorth"), money(s.netWorth))}</section>`;
 }
 export function properties(state) {
   const { game: g } = state.session;
@@ -491,6 +478,52 @@ export function tradeDialog(state, assetId) {
     ),
   )}<div id="trade-quote" class="quote-box"></div><p id="dialog-error" class="negative" role="alert"></p>${button(t("confirm"), 'type="submit"', "primary full-width")}</form></div>`;
 }
+
+export function positionCards(state) {
+  const g = state.session.game,
+    settings = state.config.settings || {};
+  const cards = (g.positions || [])
+    .map((p) => {
+      const a = state.config.assets.find((a) => a.id === p.assetId),
+        m = positionMetrics(
+          a,
+          p,
+          g.prices[p.assetId],
+          settings.liquidationEquityRatio ?? 0.15,
+        ),
+        locked = g.marketMonth < p.lockedUntilMonth,
+        ended = ["completed", "bankrupt"].includes(g.status);
+      return `<article class="position-card" data-position="${E(p.id)}"><div class="panel-heading"><div><strong>${E(text(a.name))}</strong><p class="small muted">${p.leverage}× · ${t("isolatedLong")} · ${number(p.quantity)} ${E(a.symbol)}</p></div>${pill(t(locked ? "lockedPosition" : m.risk), m.risk === "danger" || m.risk === "liquidating" ? "negative" : "")}</div><div class="position-facts">${line(t("entryPrice"), money(p.entryPrice))}${line(t("markPrice"), money(g.prices[p.assetId]))}${line(t("margin"), money(p.margin))}${line(t("exposure"), money(m.exposure))}${line(t("equity"), money(m.equity))}${line(t("unrealizedPnl"), `<span class="${m.pnl >= 0 ? "positive" : "negative"}">${money(m.pnl)} (${percent(m.roi)})</span>`)}${line(t("liquidationPrice"), m.liquidationPrice === null ? "—" : money(m.liquidationPrice))}</div><p class="small muted">${t("liquidationHint")}</p>${button(t("closePosition"), `data-close-position="${E(p.id)}" data-locked="${locked}" ${locked || ended ? "disabled" : ""}`, "secondary full-width")}</article>`;
+    })
+    .join("");
+  const history = (g.positionHistory || []).slice(-12).reverse();
+  return (
+    (cards ? `<div class="position-grid">${cards}</div>` : empty(t("none"))) +
+    (history.length
+      ? `<h3>${t("tradeHistory")}</h3>${rowsTable(
+          [
+            t("asset"),
+            t("months"),
+            t("quantity"),
+            t("trade"),
+            t("closedPnl"),
+            t("closeProceeds"),
+          ],
+          history.map(
+            (h) =>
+              `<tr><td>${E(text(state.config.assets.find((a) => a.id === h.assetId)?.name || h.assetId))}</td><td>${h.month}</td><td>${number(h.quantity)}</td><td>${t(h.kind === "forced" ? "forcedClose" : "manualClose")}</td><td class="${h.pnl - h.fee >= 0 ? "positive" : "negative"}">${money(h.pnl - h.fee)}</td><td>${money(h.proceeds)}</td></tr>`,
+          ),
+        )}`
+      : "")
+  );
+}
+export function closePositionDialog(state, positionId) {
+  const g = state.session.game,
+    p = g.positions.find((p) => p.id === positionId),
+    a = state.config.assets.find((a) => a.id === p.assetId);
+  return `<form id="close-position-form" class="stack-form"><p class="eyebrow">${E(text(a.name))} · ${p.leverage}×</p><h2>${t("closePreview")}</h2><input type="hidden" name="positionId" value="${E(p.id)}">${line(t("holding"), number(p.quantity))}${field(t("closeQuantity"), `<input type="number" name="quantity" value="${p.quantity}" min="${a.quantityStep || 1}" max="${p.quantity}" step="${a.quantityStep || 1}" required>`)}${button(t("allQuantity"), 'type="button" data-close-all', "secondary compact")}<div id="close-quote" class="quote-box" aria-live="polite"></div><p id="dialog-error" class="negative" role="alert"></p>${button(t("confirm"), 'type="submit"', "primary full-width")}</form>`;
+}
+
 export const pages = {
   home,
   setup,

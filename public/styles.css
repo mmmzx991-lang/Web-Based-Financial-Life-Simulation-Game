@@ -2183,3 +2183,28 @@ dialog::backdrop {
     transition: none !important;
   }
 }
+.position-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: 20px;
+}
+.position-card {
+  border: 1px solid var(--border, #ddd);
+  border-radius: 14px;
+  padding: 20px;
+  min-width: 0;
+}
+.position-facts .detail-row {
+  gap: 14px;
+  align-items: baseline;
+}
+.position-card h3 {
+  margin-top: 0;
+}
+.position-card .panel-heading {
+  align-items: flex-start;
+  gap: 10px;
+}
+.position-card .small {
+  line-height: 1.7;
+}

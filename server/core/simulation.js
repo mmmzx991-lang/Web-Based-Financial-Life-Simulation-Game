@@ -1,3 +1,4 @@
+import { closeQuote } from "../../public/leverage-math.js";
 import {
   MODES,
   DIFFICULTIES,
@@ -20,7 +21,6 @@ import {
   fee,
   money,
   nextId,
-  positionEquity,
   snapshot,
   usable,
 } from "./finance.js";
@@ -216,6 +216,7 @@ export function trade(state, { assetId, side, quantity, leverage = 1 } = {}) {
         assetId,
         quantity,
         leverage,
+        positionVersion: 2,
         margin,
         entryPrice: game.prices[assetId],
         openedMonth: game.marketMonth,
@@ -384,14 +385,35 @@ export function act(state, action = {}) {
         game.marketMonth >= p.lockedUntilMonth,
         "Position is locked until next month",
       );
-      const equity = positionEquity(game, p),
-        cost = Math.min(
-          equity,
-          fee(holdingValue(p.assetId, p.quantity, game.prices[p.assetId])),
-        );
-      game.cash += equity - cost;
-      recordExpense(game, cost);
-      game.positions = game.positions.filter((x) => x.id !== p.id);
+      const asset = ASSETS.find((a) => a.id === p.assetId);
+      const quote = closeQuote(
+        asset,
+        p,
+        game.prices[p.assetId],
+        action.quantity === undefined ? p.quantity : action.quantity,
+        SETTINGS.tradeFee,
+      );
+      game.cash += quote.proceeds;
+      recordExpense(game, quote.fee);
+      game.positions = quote.remaining
+        ? game.positions.map((x) => (x.id === p.id ? quote.remaining : x))
+        : game.positions.filter((x) => x.id !== p.id);
+      game.positionHistory = [
+        ...(game.positionHistory || []),
+        {
+          positionId: p.id,
+          assetId: p.assetId,
+          kind: "manual",
+          month: game.marketMonth,
+          entryPrice: p.entryPrice,
+          exitPrice: game.prices[p.assetId],
+          ...Object.fromEntries(
+            ["quantity", "margin", "equity", "fee", "proceeds", "pnl"].map(
+              (k) => [k, quote[k]],
+            ),
+          ),
+        },
+      ].slice(-200);
       return game;
     }
     case "buy-property": {
