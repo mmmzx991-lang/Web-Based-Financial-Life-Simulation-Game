@@ -1,3 +1,4 @@
+import { orderValue } from "./order-math.js";
 import {
   t,
   text,
@@ -7,7 +8,7 @@ import {
   modeLabel,
   getLanguage,
 } from "./i18n.js";
-import { wealthChart } from "./charts.js";
+import { wealthChart, priceChart } from "./charts.js";
 export const escape = (value) =>
   String(value ?? "").replace(
     /[&<>"']/g,
@@ -55,11 +56,11 @@ const field = (label, input) =>
   `<label class="field"><span>${label}</span>${input}</label>`;
 const input = (name, value = "", options = "") =>
   `<input name="${name}" value="${E(value)}" ${options}>`;
-const numeric = (name, value = "1", options = "") =>
+const numeric = (name, value = "1", step = 1) =>
   input(
     name,
     value,
-    `type="number" required min="1" step="1" inputmode="numeric" ${options}`,
+    `type="number" required min="${step}" step="${step}" inputmode="${step === 1 ? "numeric" : "decimal"}"`,
   );
 const amount = (name = "amount", value = "1000") =>
   input(
@@ -106,8 +107,8 @@ export function shell(state, content) {
     "bank",
     "report",
   ];
-  return `<header class="app-header"><button class="brand" data-view="${game ? "life" : "home"}"><span class="brand-mark">↗</span><span>${t("brand")}<small>${t("tagline")}</small></span></button><div class="header-context">${game ? `<strong>${headingState(game, summary)}</strong><span>${modeLabel(game.mode)} / ${t(game.difficulty)} / ${t(game.ruleset)}</span>` : `<span>${t("version")}</span>`}</div><div class="header-actions"><button class="language-button" data-language="${getLanguage() === "en" ? "zh" : "en"}" aria-label="${t("language")}">${icon("globe")}<span>${getLanguage() === "en" ? "中文" : "English"}</span></button><button class="avatar" ${signed ? 'data-view="profile"' : 'data-auth="login"'} aria-label="${signed ? t("profile") : t("signin")}">${signed ? E(state.user.displayName?.slice(0, 2).toUpperCase() || "IG") : icon("profile")}</button></div></header>
-  <div class="app-layout ${game ? "has-sidebar" : ""}">${game ? `<aside class="sidebar"><p class="nav-caption">${t("brand")}</p><nav aria-label="${t("life")}">${navigation.map((id) => navButton(id, state.view)).join("")}</nav><div class="sidebar-bottom">${navButton("leaderboard", state.view)}${navButton("profile", state.view)}${navButton("help", state.view)}<div class="autosave-note">${icon("save")}<span>${t("autosaved")}</span></div></div></aside>` : ""}<main id="main" tabindex="-1">${content}<footer>${t("educational")}<br>${t("notFinancialAdvice")}</footer></main></div>
+  return `<header class="app-header"><button class="brand" data-view="${game ? "life" : "home"}"><span class="brand-mark">↗</span><span>${t("brand")}<small>${t("tagline")}</small></span></button><div class="header-context">${game ? `<strong>${headingState(game, summary)}</strong><span>${modeLabel(game.mode)} / ${t(game.difficulty)} / ${t(game.ruleset)}</span>` : ""}</div><div class="header-actions"><button class="language-button" data-language="${getLanguage() === "en" ? "zh" : "en"}" aria-label="${t("language")}">${icon("globe")}<span>${getLanguage() === "en" ? "中文" : "English"}</span></button><button class="avatar" ${signed ? 'data-view="profile"' : 'data-auth="login"'} aria-label="${signed ? t("profile") : t("signin")}">${signed ? E(state.user.displayName?.slice(0, 2).toUpperCase() || "IG") : icon("profile")}</button></div></header>
+  <div class="app-layout ${game ? "has-sidebar" : ""}">${game ? `<aside class="sidebar"><p class="nav-caption">${t("brand")}</p><nav aria-label="${t("life")}">${navigation.map((id) => navButton(id, state.view)).join("")}</nav><div class="sidebar-bottom">${navButton("leaderboard", state.view)}${navButton("profile", state.view)}${navButton("help", state.view)}<div class="autosave-note">${icon("save")}<span>${t("autosaved")}</span></div></div></aside>` : ""}<main id="main" tabindex="-1">${content}<footer>${t("brand")} · ${t("tagline")}</footer></main></div>
   ${game ? `<nav class="mobile-nav" aria-label="${t("life")}">${["life", "market", "assets", "news", "more"].map((id) => navButton(id, state.view, true)).join("")}</nav>` : ""}`;
 }
 export function home(state) {
@@ -177,22 +178,95 @@ export function life(state) {
 export function market(state) {
   const { game: g } = state.session;
   const filter = state.marketFilter || "all";
-  const assets = state.config.assets.filter(
-    (a) =>
-      filter === "all" ||
-      a.category === filter ||
-      (filter === "stocks" && a.category === "stock") ||
-      (filter === "commodities" && a.category === "commodity"),
-  );
-  return `${title(t("tagline"), t("marketTitle"), t("marketDescription"))}${pausedBanner(g)}<div class="filter-row">${["all", "stocks", "crypto", "gold", "commodities"].map((id) => `<button class="filter-chip ${filter === id ? "selected" : ""}" data-filter="${id}">${t(id)}</button>`).join("")}${pill(t(g.economy || "recovery"), "success")}</div><section class="panel">${rowsTable(
-    [t("asset"), t("price"), t("change"), t("holding"), t("trade")],
-    assets.map((a) => {
-      const current = g.prices[a.id],
-        previous = g.previousPrices?.[a.id] || current,
-        change = previous ? (current - previous) / previous : 0;
-      return `<tr><td><span class="asset-symbol">${E(a.symbol || a.id.slice(0, 3).toUpperCase())}</span><strong>${E(text(a.name))}</strong></td><td>${money(current)}</td><td class="${change >= 0 ? "positive" : "negative"}">${change >= 0 ? "↑" : "↓"} ${percent(Math.abs(change))}</td><td>${number(g.holdings[a.id]?.quantity || 0)}</td><td>${button(t("trade"), `data-trade="${E(a.id)}"`, "secondary compact")}</td></tr>`;
-    }),
-  )}<p class="small muted">${t("noWeekly")}</p></section><div class="two-columns"><section class="panel"><h2>${t("locked")}</h2><p>${t("lockHint")}</p></section><section class="panel"><h2>${t("leverage")}</h2><p>${t("leverageHint")}</p></section></div>`;
+  const groups = [
+    ["stocks", "stock", "stockDescription"],
+    ["crypto", "crypto", "cryptoDescription"],
+    ["gold", "gold", "goldDescription"],
+    ["commodities", "commodity", "commodityDescription"],
+  ];
+  const subfilter = state.marketSubfilter || "all",
+    search = (state.marketSearch || "").trim().toLowerCase();
+  const subgroup = (id) =>
+    ["crude-oil", "natural-gas"].includes(id)
+      ? "energy"
+      : ["silver", "copper"].includes(id)
+        ? "metals"
+        : "agriculture";
+  const change = (a) =>
+    (g.prices[a.id] - (g.previousPrices?.[a.id] || g.prices[a.id])) /
+    (g.previousPrices?.[a.id] || g.prices[a.id]);
+  const selected = groups.find(([id]) => id === filter);
+  const assets = state.config.assets
+    .filter(
+      (a) =>
+        (filter === "all" || a.category === selected?.[1]) &&
+        (filter !== "commodities" ||
+          subfilter === "all" ||
+          subgroup(a.id) === subfilter) &&
+        (!search ||
+          [a.symbol, a.id, ...Object.values(a.name)]
+            .join(" ")
+            .toLowerCase()
+            .includes(search)),
+    )
+    .sort((a, b) =>
+      state.marketSort === "change"
+        ? change(b) - change(a)
+        : state.marketSort === "price"
+          ? g.prices[b.id] - g.prices[a.id]
+          : text(a.name).localeCompare(text(b.name)),
+    );
+  const macro = g.macro;
+  const overview = `<div class="market-categories">${groups
+    .map(([id, category, description]) => {
+      const count = state.config.assets.filter(
+        (a) => a.category === category,
+      ).length;
+      return `<button class="market-category ${filter === id ? "selected" : ""}" data-market-group="${id}" aria-pressed="${filter === id}"><span class="category-emblem">${id === "crypto" ? "₿" : id === "gold" ? "Au" : icon(id === "stocks" ? "market" : "assets")}</span><strong>${t(id)}</strong><span>${count} ${t("instruments")}</span>${icon("arrow")}</button>`;
+    })
+    .join("")}</div>`;
+  const sections = (filter === "all" ? groups : [selected])
+    .filter(Boolean)
+    .map(([id, category, description]) => {
+      const rows = assets.filter((a) => a.category === category);
+      if (!rows.length) return "";
+      return `<section class="panel market-section" data-category-section="${id}"><div class="panel-heading"><div><h2>${t(id)}</h2><p class="small muted">${t(description)}</p></div>${pill(`${rows.length} ${t("instruments")}`)}</div>${rowsTable(
+        [
+          t("asset"),
+          t("price"),
+          t("change"),
+          t("risk"),
+          t("holding"),
+          t("trade"),
+        ],
+        rows.map((a) => {
+          const current = g.prices[a.id],
+            delta = change(a),
+            risk =
+              a.risk ||
+              (a.category === "crypto"
+                ? "very-high"
+                : a.category === "gold"
+                  ? "medium"
+                  : "high");
+          return `<tr><td><div class="instrument-name"><span class="asset-symbol">${E(a.symbol)}</span><span><strong>${E(text(a.name))}</strong><small>${E(text(a.sector || { en: t(id), zh: t(id) }))}${a.category === "commodity" ? " · " + t(subgroup(a.id)) : ""}</small></span></div></td><td>${money(current)}<small class="instrument-unit">/ ${E(text(a.unit || { en: t("unitUnits"), zh: t("unitUnits") }))}</small></td><td class="${delta >= 0 ? "positive" : "negative"}">${delta >= 0 ? "↑" : "↓"} ${percent(Math.abs(delta))}</td><td><span class="risk-label">${typeof risk === "object" ? E(text(risk)) : t(risk)}</span></td><td>${number(g.holdings[a.id]?.quantity || 0)}</td><td>${button(t("marketDetails"), `data-trade="${E(a.id)}"`, "secondary compact")}</td></tr>`;
+        }),
+      )}</section>`;
+    })
+    .join("");
+  return `${title(t("tagline"), filter === "all" ? t("marketTitle") : t(filter), selected ? t(selected[2]) : t("marketDescription"))}${pausedBanner(g)}${macro ? `<div class="metrics four market-macro">${card(t("policyRate"), percent(macro.policyRate))}${card(t("inflation"), percent(macro.inflation))}${card(t("economicGrowth"), percent(macro.growth))}${card(t("confidence"), percent(macro.confidence))}</div>` : ""}${overview}<div class="market-toolbar"><div class="filter-row"><button class="filter-chip ${filter === "all" ? "selected" : ""}" data-filter="all">${t("marketOverview")}</button>${filter === "commodities" ? ["all", "energy", "metals", "agriculture"].map((id) => `<button class="filter-chip ${subfilter === id ? "selected" : ""}" data-subfilter="${id}">${t(id)}</button>`).join("") : ""}${pill(t(g.economy || "expansion"), "success")}</div><div class="market-search-controls">${field(t("searchAssets"), `<input id="market-search" type="search" value="${E(state.marketSearch || "")}" placeholder="${t("searchAssets")}" autocomplete="off">`)}${field(
+    t("sortBy"),
+    select(
+      "market-sort",
+      [
+        ["name", t("sortName")],
+        ["change", t("sortChange")],
+        ["price", t("sortPrice")],
+      ],
+      state.marketSort || "name",
+      'id="market-sort"',
+    ),
+  )}</div></div>${sections || empty(t("noAssets"))}`;
 }
 export function portfolio(state) {
   const { game: g, summary: s } = state.session,
@@ -213,7 +287,7 @@ export function portfolio(state) {
           ],
           holdings.map(([id, h]) => {
             const asset = state.config.assets.find((a) => a.id === id);
-            return `<tr><td>${E(text(asset?.name || id))}</td><td>${number(h.quantity)}</td><td>${money(h.averageCost)}</td><td>${money(g.prices[id] * h.quantity)}</td><td>${number(h.lockedQuantity)}</td><td>${number(Math.max(0, h.quantity - h.lockedQuantity))}</td><td>${button(t("trade"), `data-trade="${id}"`, "secondary compact")}</td></tr>`;
+            return `<tr><td>${E(text(asset?.name || id))}</td><td>${number(h.quantity)}</td><td>${money(h.averageCost)}</td><td>${money(orderValue(asset, h.quantity, g.prices[id]))}</td><td>${number(h.lockedQuantity)}</td><td>${number(Math.max(0, h.quantity - h.lockedQuantity))}</td><td>${button(t("trade"), `data-trade="${id}"`, "secondary compact")}</td></tr>`;
           }),
         )
       : empty(t("noHoldings"))
@@ -223,7 +297,13 @@ export function portfolio(state) {
           [t("asset"), t("leverage"), t("margin"), t("exposure"), ""],
           g.positions.map(
             (p) =>
-              `<tr><td>${E(text(state.config.assets.find((a) => a.id === p.assetId)?.name || p.assetId))}</td><td>${p.leverage}×</td><td>${money(p.margin)}</td><td>${money(p.quantity * g.prices[p.assetId])}</td><td>${actionButton(t("closePosition"), "close-position", { positionId: p.id }, "secondary compact")}</td></tr>`,
+              `<tr><td>${E(text(state.config.assets.find((a) => a.id === p.assetId)?.name || p.assetId))}</td><td>${p.leverage}×</td><td>${money(p.margin)}</td><td>${money(
+                orderValue(
+                  state.config.assets.find((a) => a.id === p.assetId),
+                  p.quantity,
+                  g.prices[p.assetId],
+                ),
+              )}</td><td>${actionButton(t("closePosition"), "close-position", { positionId: p.id }, "secondary compact")}</td></tr>`,
           ),
         )
       : empty(t("none"))
@@ -299,7 +379,7 @@ export function bank(state) {
 }
 export function news(state) {
   const g = state.session.game;
-  return `${title(t("tagline"), t("newsTitle"), t("newsDescription"))}${pausedBanner(g)}<div class="economy-stages">${["expansion", "boom", "recession", "recovery"].map((id) => `<span class="${g.economy === id ? "selected" : ""}">${g.economy === id ? "● " : ""}${t(id)}</span>`).join("")}</div><section class="panel">${g.news?.length ? g.news.map((n) => `<article class="news-article"><p class="eyebrow">${t("month")} ${g.elapsedMonths + 1} · ${t(g.economy || "recovery")}</p><h2>${E(text(n.title))}</h2><p>${E(text(n.body))}</p>${n.impact ? `<p class="small muted">${E(text(n.impact))}</p>` : ""}</article>`).join("") : empty(t("noNews"))}<p class="small muted">${t("newsTemplates")}</p></section>`;
+  return `${title(t("tagline"), t("newsTitle"), t("newsDescription"))}${pausedBanner(g)}<div class="economy-stages">${["expansion", "boom", "recession", "recovery"].map((id) => `<span class="${g.economy === id ? "selected" : ""}">${g.economy === id ? "● " : ""}${t(id)}</span>`).join("")}</div><section class="panel">${g.news?.length ? g.news.map((n) => `<article class="news-article"><p class="eyebrow">${t("month")} ${g.elapsedMonths + 1} · ${t(g.economy || "recovery")}</p><h2>${E(text(n.title))}</h2><p>${E(text(n.body))}</p>${n.impact ? `<p class="small muted">${E(text(n.impact))}</p>` : ""}</article>`).join("") : empty(t("noNews"))}</section>`;
 }
 export function reports(state) {
   const { game: g, summary: s } = state.session,
@@ -374,7 +454,7 @@ export function more(state) {
   return `${title(t("tagline"), t("more"))}<div class="more-grid">${["property", "business", "bank", "report", "leaderboard", "profile", "help"].map((id) => navButton(id, state.view)).join("")}</div>`;
 }
 export function help() {
-  return `${title(t("tagline"), t("helpTitle"))}<div class="two-columns"><section class="panel"><h2>${t("help")}</h2><p class="preserve-lines">${t("helpSteps")}</p></section><section class="panel"><h2>${t("ruleset")}</h2><p>${t("helpRules")}</p><p>${t("lockHint")}</p><p>${t("leverageHint")}</p></section></div><section class="panel"><h2>${t("assumptions")}</h2><p>${t("assumptionsHint")}</p></section>`;
+  return `${title(t("tagline"), t("helpTitle"))}<div class="two-columns"><section class="panel"><h2>${t("help")}</h2><p class="preserve-lines">${t("helpSteps")}</p></section><section class="panel"><h2>${t("ruleset")}</h2><p>${t("helpRules")}</p><p>${t("lockHint")}</p><p>${t("leverageHint")}</p></section></div><section class="panel"><h2>${t("diversify")}</h2><p>${t("diversifyHint")}</p></section>`;
 }
 export function authDialog(mode = "login") {
   return `<form class="auth-form" id="auth-form"><p class="eyebrow">${t("tagline")}</p><h2>${t(mode === "register" ? "register" : "signin")}</h2>${mode === "register" ? field(t("displayName"), input("displayName", "", 'required minlength="2" maxlength="40" autocomplete="nickname"')) : ""}${field(t("email"), input("email", "", 'type="email" required maxlength="254" autocomplete="email"'))}${field(t("password"), input("password", "", 'type="password" required minlength="8" maxlength="128" autocomplete="' + (mode === "register" ? "new-password" : "current-password") + '"'))}<p class="small muted">${t("accountHint")}</p><p id="dialog-error" class="negative" role="alert"></p>${button(t(mode === "register" ? "register" : "signin"), 'type="submit"', "primary full-width")}<div class="auth-alternatives"><button type="button" class="text-button" data-switch-auth="${mode === "register" ? "login" : "register"}">${t(mode === "register" ? "signin" : "register")}</button><button type="button" class="text-button" data-guest>${t("guest")}</button></div></form>`;
@@ -382,8 +462,14 @@ export function authDialog(mode = "login") {
 export function tradeDialog(state, assetId) {
   const a = state.config.assets.find((a) => a.id === assetId),
     g = state.session.game,
-    h = g.holdings[assetId] || { quantity: 0, lockedQuantity: 0 };
-  return `<form id="trade-form" class="stack-form"><p class="eyebrow">${E(a.symbol || a.id)} · ${t("monthlyHistory")}</p><h2>${E(text(a.name))}</h2><div class="trade-price">${money(g.prices[assetId])}</div>${line(t("holding"), number(h.quantity))}${line(t("locked"), number(h.lockedQuantity))}${line(t("eligible"), number(Math.max(0, h.quantity - h.lockedQuantity)))}<input type="hidden" name="assetId" value="${assetId}">${field(
+    h = g.holdings[assetId] || { quantity: 0, lockedQuantity: 0 },
+    step = a.quantityStep || (a.category === "crypto" ? 0.01 : 1),
+    metrics = g.assetMetrics?.[assetId],
+    history = g.priceHistory?.[assetId] || [
+      { month: g.marketMonth, price: g.prices[assetId] },
+    ];
+  const risk = a.risk || (a.category === "crypto" ? "very-high" : "high");
+  return `<div class="instrument-dialog"><section class="instrument-analysis"><p class="eyebrow">${E(a.symbol)} · ${E(text(a.sector || a.name))}</p><h2>${E(text(a.name))}</h2><div class="trade-price">${money(g.prices[assetId])}</div><p class="small muted">${t("price")} / ${E(text(a.unit || t("unitUnits")))}</p><h3>${t("priceHistory")}</h3>${priceChart(history, t("priceHistory"))}<div class="instrument-facts">${line(t("risk"), typeof risk === "object" ? E(text(risk)) : t(risk))}${line(t("minOrder"), `${step} ${a.category === "crypto" ? E(a.symbol) : E(text(a.unit || t("unitUnits")))}`)}${metrics ? `${line(t("volatility"), percent(metrics.volatility))}${line(t("valuation"), `${number(metrics.valuation)}×`)}${line(t("trend"), percent(metrics.trend))}` : ""}</div><p class="small muted">${t("lockHint")}</p><p class="small muted">${t("leverageHint")}</p></section><form id="trade-form" class="stack-form"><h2>${t("reviewTrade")}</h2>${line(t("holding"), number(h.quantity))}${line(t("locked"), number(h.lockedQuantity))}${line(t("eligible"), number(Math.max(0, h.quantity - h.lockedQuantity)))}<input type="hidden" name="assetId" value="${assetId}">${field(
     t("trade"),
     select(
       "side",
@@ -393,7 +479,7 @@ export function tradeDialog(state, assetId) {
       ],
       "buy",
     ),
-  )}${field(t("quantity"), numeric("quantity", a.category === "crypto" ? "1" : "10"))}${field(
+  )}${field(t("quantity"), numeric("quantity", a.category === "crypto" ? "0.01" : "10", step))}${field(
     t("leverage"),
     select(
       "leverage",
@@ -403,7 +489,7 @@ export function tradeDialog(state, assetId) {
       ]),
       1,
     ),
-  )}<div id="trade-quote" class="quote-box"></div><p class="small muted">${t("lockHint")}</p><p class="small muted">${t("leverageHint")}</p><p id="dialog-error" class="negative" role="alert"></p>${button(t("confirm"), 'type="submit"', "primary full-width")}</form>`;
+  )}<div id="trade-quote" class="quote-box"></div><p id="dialog-error" class="negative" role="alert"></p>${button(t("confirm"), 'type="submit"', "primary full-width")}</form></div>`;
 }
 export const pages = {
   home,

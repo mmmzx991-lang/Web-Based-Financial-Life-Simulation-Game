@@ -1,3 +1,4 @@
+import { orderValue } from "./order-math.js";
 import { t, setLanguage, getLanguage, text, money, errorText } from "./i18n.js";
 import { pages, shell, authDialog, tradeDialog, escape } from "./views.js";
 import { exportReport } from "./export-report.js";
@@ -12,6 +13,9 @@ const state = {
   selection: { mode: "full-life", difficulty: "normal", ruleset: "standard" },
   leaderboardFilter: { mode: "full-life", difficulty: "normal" },
   marketFilter: "all",
+  marketSubfilter: "all",
+  marketSearch: "",
+  marketSort: "name",
   busy: false,
 };
 const root = document.getElementById("app"),
@@ -114,6 +118,7 @@ async function work(task, { modal = false } = {}) {
   }
 }
 function openDialog(content, type) {
+  dialog.classList.toggle("trade-dialog", type === "trade");
   dialogBody.innerHTML = content;
   dialogType = type;
   if (!dialog.open) dialog.showModal();
@@ -225,10 +230,11 @@ function updateQuote() {
     q = Math.max(0, Number(data.get("quantity")) || 0),
     leverage = Number(data.get("leverage")) || 1,
     side = data.get("side");
-  const value = Math.round(q * g.prices[dialogAsset]),
+  const asset = state.config.assets.find((a) => a.id === dialogAsset);
+  const value = orderValue(asset, q, g.prices[dialogAsset]),
     fee = Math.max(1, Math.round(value * (state.config.tradeFeeRate ?? 0.002)));
   document.getElementById("trade-quote").innerHTML =
-    `<div class="detail-row"><span>${t("tradeValue")}</span><strong>${money(value)}</strong></div><div class="detail-row"><span>${t("transactionFee")}</span><strong>${money(fee)}</strong></div><div class="detail-row"><span>${side === "buy" ? (leverage > 1 ? t("margin") : t("totalCost")) : t("cash")}</span><strong>${money(side === "buy" ? Math.round(value / leverage) + fee : Math.max(0, value - fee))}</strong></div>`;
+    `<div class="detail-row"><span>${t("tradeValue")}</span><strong>${money(value)}</strong></div><div class="detail-row"><span>${t("transactionFee")}</span><strong>${money(fee)}</strong></div><div class="detail-row"><span>${side === "buy" ? (leverage > 1 ? t("margin") : t("totalCost")) : t("cash")}</span><strong>${money(side === "buy" ? Math.max(1, Math.round(value / leverage)) + fee : Math.max(0, value - fee))}</strong></div>`;
 }
 function actionFromElement(el) {
   const action = { type: el.dataset.action };
@@ -319,8 +325,15 @@ document.addEventListener("click", async (e) => {
       render();
       return;
     }
-  if (el.dataset.filter) {
-    state.marketFilter = el.dataset.filter;
+  if (el.dataset.filter || el.dataset.marketGroup) {
+    state.marketFilter = el.dataset.filter || el.dataset.marketGroup;
+    state.marketSubfilter = "all";
+    state.marketSearch = "";
+    render();
+    return;
+  }
+  if (el.dataset.subfilter) {
+    state.marketSubfilter = el.dataset.subfilter;
     render();
     return;
   }
@@ -372,6 +385,22 @@ document.addEventListener("click", async (e) => {
 });
 dialog.addEventListener("input", () => {
   if (dialogType === "trade") updateQuote();
+});
+document.addEventListener("input", (event) => {
+  if (event.target.id !== "market-search") return;
+  const value = event.target.value,
+    start = event.target.selectionStart;
+  state.marketSearch = value;
+  render();
+  const search = document.getElementById("market-search");
+  search.focus();
+  search.setSelectionRange(start, start);
+});
+document.addEventListener("change", (event) => {
+  if (event.target.id === "market-sort") {
+    state.marketSort = event.target.value;
+    render();
+  }
 });
 document.addEventListener("submit", async (e) => {
   const form = e.target;

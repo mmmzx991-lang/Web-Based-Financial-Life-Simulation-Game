@@ -14,7 +14,12 @@ test("bankruptcy after an extension requires the next settlement so later expens
   game = act(game, { type: "start-business", businessType: "tech-startup" });
   game = act(game, { type: "savings-deposit", amount: game.cash });
   game = advance(game, 1);
-  assert.equal(game.unpaidBill.amount, 15000);
+  assert.ok(game.unpaidBill.amount > 0);
+  assert.equal(
+    game.unpaidBill.amount,
+    game.pendingSettlement.ledger.billTotal -
+      game.pendingSettlement.ledger.billPaid,
+  );
   game = act(game, { type: "extend-bill" });
   const closed = structuredClone(game.history);
   game = act(game, { type: "savings-withdraw", amount: 70000 });

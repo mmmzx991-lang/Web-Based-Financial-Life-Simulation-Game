@@ -1,4 +1,5 @@
 import { PROPERTY_TYPES, SETTINGS, livingCost } from "./config.js";
+import { holdingValue } from "./quantities.js";
 
 export const demand = (ok, message) => {
   if (!ok) throw new Error(message);
@@ -30,12 +31,17 @@ export const fee = (amount, rate = SETTINGS.tradeFee) =>
 export const positionEquity = (game, p) =>
   Math.max(
     0,
-    Math.round(p.margin + p.quantity * (game.prices[p.assetId] - p.entryPrice)),
+    p.margin +
+      holdingValue(
+        p.assetId,
+        p.quantity,
+        game.prices[p.assetId] - p.entryPrice,
+      ),
   );
 export function values(game) {
   const portfolioValue =
     Object.entries(game.holdings).reduce(
-      (s, [id, h]) => s + h.quantity * game.prices[id],
+      (s, [id, h]) => s + holdingValue(id, h.quantity, game.prices[id]),
       0,
     ) + game.positions.reduce((s, p) => s + positionEquity(game, p), 0);
   const propertyValue = game.properties.reduce((s, p) => s + p.value, 0);
@@ -98,7 +104,11 @@ export function settleBaseline(game, salaryBonus = 0, salaryMultiplier = 1) {
     loans = 0;
   for (const p of b.properties) {
     const c = PROPERTY_TYPES[p.type];
-    p.value = Math.round(p.value * (1 + SETTINGS.propertyAnnualGrowth / 12));
+    p.value = Math.round(
+      p.value *
+        (1 +
+          (game.macro?.propertyReturn ?? SETTINGS.propertyAnnualGrowth / 12)),
+    );
     rent += c.rent;
     maintenance += c.maintenance;
   }

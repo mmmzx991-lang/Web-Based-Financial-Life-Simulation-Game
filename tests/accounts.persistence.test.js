@@ -118,6 +118,7 @@ test("leaderboards publish one best completed Standard result per account/catego
     add(first, { ruleset: "free" }, { cash: 999999999999 });
     add(second, {}, { status: "active", ageMonths: 300, cash: 999999999999 });
     add(second, {}, { status: "bankrupt", cash: 999999999999 });
+    add(second, {}, { marketVersion: 2, cash: 999999999999 });
   });
   const server = createApp({ dataDir: path });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));

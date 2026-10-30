@@ -5,7 +5,7 @@ import {
   SETTINGS,
   livingCost,
 } from "./config.js";
-import { settleMarket, random } from "./market.js";
+import { settleMarket, random, normal, marketRandom } from "./market.js";
 import {
   demand,
   emptyLedger,
@@ -56,7 +56,7 @@ function dueSales(game, ledger, target) {
   }
 }
 
-function rentalIncome(game, ledger, target) {
+function legacyRentalIncome(game, ledger, target) {
   for (const property of game.properties) {
     const config = PROPERTY_TYPES[property.type];
     if (
@@ -95,6 +95,118 @@ function rentalIncome(game, ledger, target) {
   }
 }
 
+function rentalIncome(game, ledger, target) {
+  if (game.marketVersion !== 3) return legacyRentalIncome(game, ledger, target);
+  const demand = game.macro.rentDemand;
+  for (const property of game.properties) {
+    const config = PROPERTY_TYPES[property.type];
+    // Internal probability overrides support exact vacancy/lease timing fixtures.
+    const vacancyChance =
+      property.vacancyProbability ??
+      Math.min(0.035, 0.007 + Math.max(0, 1 - demand) * 0.07);
+    if (
+      property.occupied &&
+      marketRandom(game.scenarioSeed, target, `vacancy:${property.id}`) <
+        vacancyChance
+    ) {
+      property.occupied = false;
+      property.vacantSince = target;
+      property.leaseStartsMonth = null;
+      ledger.events.push({
+        id: `vacancy-${property.id}-${target}`,
+        type: "vacancy",
+        propertyId: property.id,
+      });
+    }
+    if (
+      property.occupied &&
+      (!property.leaseStartsMonth || target >= property.leaseStartsMonth)
+    ) {
+      // Annual rent reviews and a partial inflation link limit sudden rent jumps.
+      if (property.monthlyRent == null || target % 12 === 0)
+        property.monthlyRent = Math.round(
+          config.rent * game.priceIndex ** 0.6 * (0.75 + 0.25 * demand),
+        );
+      ledger.rent += property.monthlyRent;
+    }
+    if (!property.occupied && target > (property.vacantSince ?? target)) {
+      const chance =
+        property.tenantSearchProbability ??
+        Math.min(0.9, Math.max(0.2, SETTINGS.tenantSearchProbability * demand));
+      if (
+        marketRandom(game.scenarioSeed, target, `tenant:${property.id}`) <
+        chance
+      ) {
+        property.occupied = true;
+        property.leaseStartsMonth = target + 1;
+        property.monthlyRent = Math.round(
+          config.rent * game.priceIndex ** 0.6 * (0.75 + 0.25 * demand),
+        );
+        ledger.events.push({
+          id: `tenant-${property.id}-${target}`,
+          type: "tenant-found",
+          propertyId: property.id,
+        });
+      }
+    }
+    ledger.maintenance += Math.round(
+      config.maintenance * game.priceIndex ** 0.5,
+    );
+  }
+}
+
+function modernBusinessResults(game, b, config, target) {
+  const level = b.activeLevel || 1;
+  const state = (b.operatingState ??= {
+    revenueShock: 0,
+    costShock: 0,
+    // New entrants pay prevailing input prices, including inflation before setup.
+    costIndex: game.priceIndex / (1 + game.inflationRate),
+    advertisingSaturation: 0,
+  });
+  const normalAt = (key) =>
+    normal(game.scenarioSeed, target, `business:${key}`);
+  state.revenueShock =
+    0.68 * state.revenueShock +
+    0.032 * normalAt(`${b.id}:revenue`) +
+    0.014 * normalAt(`${b.type}:demand`);
+  state.costShock = 0.82 * state.costShock + 0.01 * normalAt(`${b.id}:cost`);
+  state.costIndex *= 1 + game.macro.inputCostGrowth;
+  const sensitivity = {
+    "coffee-shop": { demand: 0.8, credit: 0.04, input: 0.9 },
+    "online-store": { demand: 1.15, credit: 0.05, input: 0.75 },
+    "tech-startup": { demand: 1.45, credit: 0.18, input: 1.1 },
+  }[b.type];
+  const marketDemand = Math.max(
+    0.55,
+    1 +
+      sensitivity.demand * (game.macro.businessDemand - 1) -
+      sensitivity.credit * (game.macro.creditStress - 0.25),
+  );
+  const advertising = b.advertisingUntil >= target;
+  const adLift = advertising
+    ? 0.16 / (1 + state.advertisingSaturation + 0.12 * (level - 1))
+    : 0;
+  state.advertisingSaturation =
+    state.advertisingSaturation * 0.87 + (advertising ? 0.1 : 0);
+  const growth = 1 + 0.22 * Math.log2(level);
+  const revenue = Math.round(
+    config.revenue *
+      growth *
+      marketDemand *
+      (1 + adLift) *
+      game.priceIndex ** 0.85 *
+      Math.exp(state.revenueShock),
+  );
+  const costs = Math.round(
+    config.operatingCost *
+      (1 + 0.12 * (level - 1) ** 0.8) *
+      state.costIndex ** sensitivity.input *
+      Math.exp(state.costShock),
+  );
+  return { revenue, costs };
+}
+
 function businessIncome(game, ledger, target) {
   for (const b of game.businesses) {
     const config = BUSINESS_TYPES[b.type];
@@ -110,16 +222,18 @@ function businessIncome(game, ledger, target) {
       recovery: 1.02,
     }[game.economy];
     const advertising = b.advertisingUntil >= target ? 1.16 : 1;
-    const revenue = Math.round(
+    let revenue = Math.round(
       config.revenue *
         growth *
         conditions *
         advertising *
         (0.88 + random(game.scenarioSeed, target, `business-${b.id}`) * 0.24),
     );
-    const costs = Math.round(
+    let costs = Math.round(
       config.operatingCost * (1 + ((b.activeLevel || 1) - 1) * 0.12),
     );
+    if (game.marketVersion === 3)
+      ({ revenue, costs } = modernBusinessResults(game, b, config, target));
     b.lastRevenue = revenue;
     b.lastOperatingCost = costs;
     b.lastProfit = revenue - costs;
@@ -229,7 +343,9 @@ function settleMonth(game) {
   for (const asset of ASSETS)
     ledger.dividends += Math.round(
       ((game.holdings[asset.id]?.quantity || 0) *
-        game.prices[asset.id] *
+        (game.marketVersion === 3
+          ? game.assetMetrics[asset.id].fundamental
+          : game.prices[asset.id]) *
         asset.dividendYield) /
         12,
     );

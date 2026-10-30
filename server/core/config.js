@@ -169,6 +169,36 @@ export const ASSETS = [
     volatility,
     dividendYield,
     maxLeverage: category === "crypto" ? 3 : 2,
+    quantityStep: category === "crypto" ? 0.01 : 1,
+    unit:
+      category === "stock"
+        ? { en: "share", zh: "股" }
+        : category === "crypto"
+          ? { en: "coin", zh: "枚" }
+          : { en: "unit", zh: "单位" },
+    risk:
+      category === "crypto"
+        ? "very-high"
+        : volatility >= 0.22
+          ? "high"
+          : "medium",
+    sector: {
+      "meridian-tech": { en: "Technology", zh: "科技" },
+      "harbor-bank": { en: "Banking", zh: "银行" },
+      "sunrise-health": { en: "Healthcare", zh: "医疗" },
+      "cedar-retail": { en: "Consumer retail", zh: "消费零售" },
+      "nova-energy": { en: "Energy", zh: "能源" },
+      "orchid-industry": { en: "Industry", zh: "工业" },
+      gold: { en: "Precious metals", zh: "贵金属" },
+      bitcoin: { en: "Digital currency", zh: "数字货币" },
+      ethereum: { en: "Digital platforms", zh: "数字平台" },
+      "crude-oil": { en: "Energy", zh: "能源" },
+      "natural-gas": { en: "Energy", zh: "能源" },
+      silver: { en: "Metals", zh: "金属" },
+      copper: { en: "Metals", zh: "金属" },
+      wheat: { en: "Agriculture", zh: "农业" },
+      corn: { en: "Agriculture", zh: "农业" },
+    }[id],
   }),
 );
 export const PROPERTY_TYPES = Object.fromEntries(

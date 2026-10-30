@@ -9,6 +9,12 @@ import {
 } from "./config.js";
 import { hash } from "./market.js";
 import {
+  holdingValue,
+  quantityFromUnits,
+  quantityScale,
+  quantityUnits,
+} from "./quantities.js";
+import {
   demand,
   emptyLedger,
   fee,
@@ -60,6 +66,7 @@ export function createGame({
     );
   const game = {
     version: 2,
+    marketVersion: 3,
     mode,
     difficulty,
     ruleset,
@@ -94,7 +101,7 @@ export function createGame({
     marketMonth: 0,
     nextId: 0,
     scenarioSeed: hash(
-      `${mode}|${difficulty}|${ruleset === "standard" ? "standard-v2" : (seed ?? Date.now())}`,
+      `${mode}|${difficulty}|${ruleset === "standard" ? "standard-v3" : (seed ?? Date.now())}`,
     ),
     actionLedger: emptyLedger(),
     stats: {
@@ -159,10 +166,24 @@ export function trade(state, { assetId, side, quantity, leverage = 1 } = {}) {
     asset = ASSETS.find((a) => a.id === assetId);
   demand(asset, "Unknown asset");
   demand(side === "buy" || side === "sell", "Invalid order side");
+  const scale = quantityScale(assetId),
+    scaledQuantity = quantity * scale,
+    units = quantityUnits(assetId, quantity);
   demand(
-    Number.isSafeInteger(quantity) && quantity > 0 && quantity <= 100000000,
-    "Quantity must be a positive integer",
+    Number.isFinite(quantity) &&
+      quantity > 0 &&
+      quantity <= 100000000 &&
+      Number.isSafeInteger(units) &&
+      units > 0 &&
+      (scale === 1
+        ? Number.isSafeInteger(quantity)
+        : Math.abs(scaledQuantity - units) <=
+          Number.EPSILON * Math.max(1, Math.abs(scaledQuantity)) * 4),
+    scale === 100
+      ? "Quantity must be positive in steps of 0.01"
+      : "Quantity must be a positive integer",
   );
+  quantity = quantityFromUnits(assetId, units);
   demand(
     Number.isInteger(leverage) &&
       leverage >= 1 &&
@@ -173,11 +194,12 @@ export function trade(state, { assetId, side, quantity, leverage = 1 } = {}) {
     side === "buy" || leverage === 1,
     "Use close-position for leveraged sales",
   );
-  const exposure = game.prices[assetId] * quantity;
+  const exposure = holdingValue(assetId, quantity, game.prices[assetId]);
   demand(
     Number.isSafeInteger(exposure) && exposure <= SETTINGS.maximumAmount,
     "Order too large",
   );
+  demand(exposure > 0, "Order too small; value must be at least one sen");
   const cost = fee(exposure);
   if (side === "buy") {
     // A paused run permits raising funds; it cannot add new investment risk.
@@ -185,7 +207,7 @@ export function trade(state, { assetId, side, quantity, leverage = 1 } = {}) {
       !game.unpaidBill && !game.pendingSettlement && !game.pendingEvent,
       "Resolve paused event or bill before buying",
     );
-    const margin = Math.round(exposure / leverage);
+    const margin = Math.max(1, Math.round(exposure / leverage));
     cashCost(game, margin + cost);
     recordExpense(game, cost);
     if (leverage > 1)
@@ -205,22 +227,35 @@ export function trade(state, { assetId, side, quantity, leverage = 1 } = {}) {
         lockedQuantity: 0,
         averageCost: 0,
       };
-      h.averageCost = Math.round(
-        (h.quantity * h.averageCost + exposure) / (h.quantity + quantity),
+      const totalUnits = quantityUnits(assetId, h.quantity) + units,
+        lockedUnits = quantityUnits(assetId, h.lockedQuantity) + units;
+      demand(
+        Number.isSafeInteger(totalUnits) && Number.isSafeInteger(lockedUnits),
+        "Quantity too large",
       );
-      h.quantity += quantity;
-      h.lockedQuantity += quantity;
+      const totalQuantity = quantityFromUnits(assetId, totalUnits);
+      h.averageCost = Math.round(
+        (h.quantity * h.averageCost + exposure) / totalQuantity,
+      );
+      h.quantity = totalQuantity;
+      h.lockedQuantity = quantityFromUnits(assetId, lockedUnits);
       game.holdings[assetId] = h;
     }
   } else {
     const h = game.holdings[assetId];
     demand(
-      h && h.quantity - h.lockedQuantity >= quantity,
+      h &&
+        quantityUnits(assetId, h.quantity) -
+          quantityUnits(assetId, h.lockedQuantity) >=
+          units,
       "Insufficient eligible holdings; new holdings are locked",
     );
     game.cash += exposure - cost;
     recordExpense(game, cost);
-    h.quantity -= quantity;
+    h.quantity = quantityFromUnits(
+      assetId,
+      quantityUnits(assetId, h.quantity) - units,
+    );
     if (!h.quantity) delete game.holdings[assetId];
   }
   return game;
@@ -350,7 +385,10 @@ export function act(state, action = {}) {
         "Position is locked until next month",
       );
       const equity = positionEquity(game, p),
-        cost = Math.min(equity, fee(game.prices[p.assetId] * p.quantity));
+        cost = Math.min(
+          equity,
+          fee(holdingValue(p.assetId, p.quantity, game.prices[p.assetId])),
+        );
       game.cash += equity - cost;
       recordExpense(game, cost);
       game.positions = game.positions.filter((x) => x.id !== p.id);

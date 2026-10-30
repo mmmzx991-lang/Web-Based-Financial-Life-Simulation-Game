@@ -23,16 +23,20 @@ Open **http://127.0.0.1:3000**. Runtime has no third-party dependencies; `npm in
 - **Four life modes**: Full Life 22–80 / 696 months; Early Career 22–45 / 276; Wealth Building 45–60 / 180; Retirement 60–80 / 240.
 - **Four exact proposal openings**: Easy / Normal / Hard / Expert starting cash, salary, properties and Expert retirement mortgage. No opening financial holdings. Full Life gets no free asset reset at 45 or 60.
 - **Monthly settlement**: advance 1 or 3 months through the same procedure, pause for required events or unpaid bills, resume only remaining months. Salary increases 2.5% on working birthdays and stops at 60. Fixed basic living costs: RM2,000 / RM3,000 / RM2,500 at ages 45 and 60.
-- **15 assets**: six fictional stocks, gold, Bitcoin, Ethereum, crude oil, natural gas, silver, copper, wheat and corn. Integer-unit orders; one monthly price; one fee per trade; current-month holdings are locked. Long-only leverage capped at 2×, or 3× for crypto, with equity-only accounting and monthly forced liquidation.
-- **Economy and news**: expansion, boom, recession and recovery; 60 prepared English/Chinese news templates. Standard public prices/news depend only on mode, difficulty and scenario month. Free uses a separate scenario and keeps its scores private.
+- **15 assets**: six fictional stocks, gold, Bitcoin, Ethereum, crude oil, natural gas, silver, copper, wheat and corn. Crypto orders start at 0.01 coin in steps of 0.01; other assets use whole units; one monthly price; one fee per trade; current-month holdings are locked. Long-only leverage capped at 2×, or 3× for crypto, with equity-only accounting and monthly forced liquidation.
+- **Economy and news**: variable-duration expansion, boom, recession and recovery; persistent inflation/rates/credit/demand, correlated asset shocks, volatility clustering, fundamental valuations and multi-month news impulses. Standard public prices/news depend only on mode, difficulty and scenario month. Free uses a separate scenario and keeps its scores private.
 - **Property**: three types, purchase/mortgage, maintenance, occupied rent, vacancy/search timing, and sales at the next settlement after fee and mortgage repayment.
 - **Business**: three venture types, monthly revenue/cost/profit, retained cash, distributions, advertisements, upgrades and next-settlement sales.
 - **Banking and difficulties**: deposits, retirement saving/withdrawal, fixed amortizing loans, unpaid liabilities, one fee-bearing bill extension and bankruptcy reports. Transfers, loan principal and business distributions never become fictitious new income.
 - **Accounts and saves**: password hashing, independent accounts, guest upgrade, durable sessions, automatic saves, persisted request identifiers, owner checks and retry-safe state changes.
 - **Reports and leaderboard**: opening snapshot plus monthly history, nominal/real wealth chart, conservative benchmark, weighted score, localized CSV downloads; one best completed Standard result per player/mode/difficulty.
-- **Responsive bilingual UI**: homepage, setup, life board, market, portfolio, news, property, business, bank, reports, leaderboard, profile and help; keyboard focus and mobile navigation.
+- **Responsive bilingual UI**: categorized stock/crypto/gold/commodity markets, energy/metals/agriculture filters, search/sort, instrument price histories and order details; homepage, setup, life board, market, portfolio, news, property, business, bank, reports, leaderboard, profile and help; keyboard focus and mobile navigation.
 
 已完成四种人生模式与四难度初始场景、月度推进、15 种资产与锁仓及杠杆、四种经济状态和 60 条双语新闻、房产出租出售、企业经营、银行与贷款、欠账延期及破产、账户与自动存档、财富图表、评分、排行榜及中英文 CSV 报告。
+
+New games use market model v3; existing v2 saves retain their original rules and are excluded from the current leaderboard. See [market model](docs/MARKET-MODEL.md).
+
+加密货币支持 0.01 个起步及递增。市场按股票、加密货币、黄金和商品分类，商品再细分能源、金属及农产品。新开人生采用升级算法；旧存档继续原规则，排行榜只接受当前算法的新游戏。
 
 ## Opening finances 初始财务
 

@@ -1,6 +1,6 @@
 # API v2
 
-All money is integer sen (RM1 = 100 sen). Trade quantities are positive integer simulated units. Names and prepared events are `{en,zh}` objects. Dynamic interface copy is localized by the browser. Authentication uses an opaque HttpOnly, SameSite=Lax cookie. The default server is local-only.
+All money is integer sen (RM1 = 100 sen). Crypto quantities are positive multiples of 0.01 coin; all other assets require positive integer units. Configuration exposes quantityStep, sector, unit and risk. New games use marketVersion:3; save/API version remains 2. Names and prepared events are `{en,zh}` objects. Dynamic interface copy is localized by the browser. Authentication uses an opaque HttpOnly, SameSite=Lax cookie. The default server is local-only.
 
 | Method | Path | Body / result |
 | --- | --- | --- |
@@ -17,7 +17,7 @@ All money is integer sen (RM1 = 100 sen). Trade quantities are positive integer 
 | POST | `/api/games/:id/action` | `{requestId:UUID,action:{type,...}}` → `{id,game,summary}` |
 | POST | `/api/games/:id/save` | `{}`; compatibility acknowledgment, all successful actions already save |
 | GET | `/api/games/:id/report` | owned report with score and saved history |
-| GET | `/api/leaderboard?mode=...&difficulty=...` | public completed Standard category; entries contain a score object with total |
+| GET | `/api/leaderboard?mode=...&difficulty=...` | public completed market-v3 Standard category; entries contain a score object with total |
 
 Valid modes: `full-life`, `early-career`, `wealth-building`, `retirement`. Difficulties: `easy`, `normal`, `hard`, `expert`. Types: `standard`, `free`.
 

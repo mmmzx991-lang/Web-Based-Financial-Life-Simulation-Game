@@ -95,6 +95,57 @@ try {
     /locked|eligible/i,
   );
   await page.locator("#dialog-close").click();
+  await page.locator('[data-market-group="crypto"]').click();
+  assert.equal(await page.locator("[data-trade]").count(), 2);
+  await page.locator('[data-trade="bitcoin"]').click();
+  assert.equal(
+    await page.locator('#trade-form [name="quantity"]').inputValue(),
+    "0.01",
+  );
+  assert.equal(
+    await page.locator('#trade-form [name="quantity"]').getAttribute("step"),
+    "0.01",
+  );
+  await page.screenshot({
+    path: join(screenshots, "desktop-crypto-detail-en.png"),
+    fullPage: true,
+  });
+  await page.locator('#trade-form button[type="submit"]').click();
+  await page.locator("#dialog").waitFor({ state: "hidden" });
+  const currentGame = async () => {
+    const id = await page.evaluate(() =>
+      localStorage.getItem("investment-last-game"),
+    );
+    return (await page.request.get(base + "/api/games/" + id)).json();
+  };
+  let cryptoRun = await currentGame();
+  assert.equal(cryptoRun.game.holdings.bitcoin.quantity, 0.01);
+  assert.ok(Number.isSafeInteger(cryptoRun.game.cash));
+  await nav("life");
+  await action('[data-action="advance"][data-months="1"]');
+  await nav("market");
+  await page.locator('[data-market-group="crypto"]').click();
+  await page.locator('[data-trade="bitcoin"]').click();
+  await page.locator('#trade-form [name="side"]').selectOption("sell");
+  await page.locator('#trade-form button[type="submit"]').click();
+  await page.locator("#dialog").waitFor({ state: "hidden" });
+  cryptoRun = await currentGame();
+  assert.equal(cryptoRun.game.holdings.bitcoin?.quantity || 0, 0);
+  assert.ok(Number.isSafeInteger(cryptoRun.game.cash));
+  await page.locator('[data-market-group="commodities"]').click();
+  for (const group of ["energy", "metals", "agriculture"]) {
+    await page.locator('[data-subfilter="' + group + '"]').click();
+    assert.equal(await page.locator("[data-trade]").count(), 2);
+  }
+  await page.locator('[data-market-group="stocks"]').click();
+  await page.locator("#market-search").fill("Harbor");
+  assert.equal(await page.locator("[data-trade]").count(), 1);
+  await page.locator("#market-search").fill("");
+  await page.locator("#market-sort").selectOption("change");
+  await page.screenshot({
+    path: join(screenshots, "desktop-markets-en.png"),
+    fullPage: true,
+  });
   await nav("bank");
   await page
     .locator('[data-form="transfer"]')
@@ -169,6 +220,14 @@ try {
     );
     await noOverflow();
   }
+  await page.locator('.mobile-nav [data-view="market"]').click();
+  await page.locator('[data-market-group="crypto"]').click();
+  await noOverflow();
+  await page.screenshot({path:join(screenshots,"mobile-markets-zh.png"),fullPage:true});
+  await page.locator('[data-trade="bitcoin"]').click();
+  assert.ok(await page.locator("#dialog").evaluate(el=>el.scrollWidth <= el.clientWidth+1));
+  await page.screenshot({path:join(screenshots,"mobile-crypto-detail-zh.png"),fullPage:true});
+  await page.locator("#dialog-close").click();
   for (const id of [
     "property",
     "business",
@@ -287,7 +346,7 @@ try {
         mobile: "390x844",
         fullRunMonths: 276,
         checks:
-          "guest, setup, trade lock, savings, business, event pause, account upgrade, reload, every mobile view, final report and leaderboard",
+          "guest, setup, trade lock, 0.01 crypto buy/sell, market categories/search/sort, savings, business, event pause, account upgrade, reload, every mobile view, final report and leaderboard",
         screenshots,
       },
       null,

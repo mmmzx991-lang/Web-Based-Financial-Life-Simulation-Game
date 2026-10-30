@@ -128,12 +128,14 @@ test("tenant search and rent have distinct following-month timing", () => {
   game.properties[0].occupied = false;
   game.properties[0].vacantSince = 0;
   game.properties[0].tenantSearchProbability = 1;
+  game.properties[0].vacancyProbability = 0;
   game = advance(game, 1);
   assert.equal(game.history.at(-1).rent, 0);
   assert.equal(game.properties[0].occupied, true);
   assert.equal(game.properties[0].leaseStartsMonth, 2);
   game = advance(game, 1);
-  assert.equal(game.history.at(-1).rent, 100000);
+  assert.equal(game.history.at(-1).rent, game.properties[0].monthlyRent);
+  assert.ok(game.history.at(-1).rent > 0);
 });
 test("business retained cash/dividends/upgrades/sale use separate balances", () => {
   let game = createGame({ difficulty: "easy" });

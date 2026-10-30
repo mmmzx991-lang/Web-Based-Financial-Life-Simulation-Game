@@ -1,12 +1,14 @@
 # Verification record 30 October 2026
 
-Verified for the bilingual v0.2 implementation on Windows with Node.js24 and installed Microsoft Edge/Chromium.
+Verified bilingual v0.3 on Windows with Node.js 24 and Microsoft Edge/Chromium.
 
-- Syntax check: 26 JavaScript source, script and test files passed.
-- Native test runner: 47 tests passed, zero failures. Includes exact openings, every Easy-mode endpoint, salary/expense/retirement boundaries, trading lock, monthly equivalence, public price reproducibility, margin cap, amortization, tenancy and sales timing, business accounting, bill recovery/extension/bankruptcy, sessions, account isolation, same-request replay, restart, CSV localization and UI regressions.
-- Real browser: English and Simplified Chinese; desktop1440×1000 and mobile390×844; no page-level horizontal overflow in each mobile view. Exercised guest setup, trading with deliberate same-month sale rejection, leverage quote roundtrip, deposit, business startup, required event, account upgrade, reload, switching to a separate empty account, Chinese CSV download, a276-month Standard completion and leaderboard eligibility. No unexpected console or JavaScript errors.
-- Short local load exercise:20 independent registered accounts, each advances12 months;140 HTTP requests. Measured728ms total,144ms request p95,180ms maximum on the verification machine. Timing varies by hardware. This does not establish sustained production capacity.
-- Independent review found and resolved three important correctness issues: terminal-history accounting after an extension, clearing private state when switching identities, and the buy/sell leverage quote state. Business actual monthly metrics were also added and checked.
-- Windows local service: http://127.0.0.1:4173/ returned200 and /api/health returned `{status:"ok",version:2}` after the old process was replaced. Local data files were preserved; anonymous v1 saves are intentionally not imported into v2 accounts.
+- Syntax: 30 JavaScript source, script and test files passed.
+- Native tests: 78 passed, zero failures. Includes integer-sen accounting for 0.01-coin orders, fractional locks/partial sales/leverage, market replay after serialization, macro transmission, volatility clustering, correlated shocks, persistent news, business inflation/diminishing upgrades, legacy compatibility, account ownership and current-model leaderboard isolation.
+- Browser: desktop 1440x1000 and mobile 390x844; English and Chinese; crypto 0.01 buy/unlock/sell, market categories/commodity subgroups/search/sort, instrument detail dialog, all mobile pages without horizontal overflow, account upgrade/reload, localized CSV, and a real 276-month Standard completion into the leaderboard. No unexpected browser errors. Screenshots were inspected for market and desktop/mobile crypto details.
+- Short load exercise: 20 independent players, 12 months each, 140 requests; measured 1,391 ms total, 374 ms p95 and 376 ms maximum. This checks a short local workload, not sustained production capacity.
+- Independent core review found no Important/Critical blocker. Targeted legacy differential probes compared complete state against the previous commit through 70 advances in all four life modes, including ETH trades and business operations: 294 comparisons matched.
+- Market inspection: 100 seeds x 696 months avoided the floor and former upper clamp; details and limitations are in MARKET-MODEL.md. No claim of completed economic balancing research.
 
-Remaining verification work before a production/academic acceptance claim: real user feedback, sustained load testing, balancing research, deployment configuration and production security/backup review. This record reports observed engineering checks, not completed external acceptance.
+New games use marketVersion 3. Existing saves retain their marketVersion 2 behavior and remain playable; legacy scores are excluded from the current leaderboard. Save/API version stays 2. Tests use temporary data and do not modify player saves.
+
+Remaining: external user acceptance, sustained production load, economic balancing research and deployment/backup/security review.
