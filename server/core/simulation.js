@@ -66,7 +66,7 @@ export function createGame({
     );
   const game = {
     version: 2,
-    marketVersion: 3,
+    marketVersion: 4,
     mode,
     difficulty,
     ruleset,
@@ -101,7 +101,7 @@ export function createGame({
     marketMonth: 0,
     nextId: 0,
     scenarioSeed: hash(
-      `${mode}|${difficulty}|${ruleset === "standard" ? "standard-v3" : (seed ?? Date.now())}`,
+      `${mode}|${difficulty}|${ruleset === "standard" ? "standard-v4" : (seed ?? Date.now())}`,
     ),
     actionLedger: emptyLedger(),
     stats: {

@@ -312,10 +312,28 @@ function assetResponse(asset, macro) {
   );
 }
 
+function riskState(game, month) {
+  const macro = game.macro,
+    draw = marketRandom(game.scenarioSeed, month, "v4:tail"),
+    size = marketRandom(game.scenarioSeed, month, "v4:tail-size");
+  const crashChance = 0.008 + 0.02 * macro.creditStress;
+  const kind =
+    draw < crashChance ? "selloff" : draw > 0.988 ? "rally" : "normal";
+  const shock =
+    kind === "selloff"
+      ? -(0.07 + 0.16 * size)
+      : kind === "rally"
+        ? 0.04 + 0.09 * size
+        : 0;
+  game.marketState.marketShock = { month, kind, shock };
+  return { shock, kind };
+}
+
 function settleModernMarket(game) {
   const month = game.marketMonth + 1;
   updateMacro(game, month);
   updateNews(game, month);
+  const risk = game.marketVersion >= 4 ? riskState(game, month) : null;
   const state = game.marketState,
     macro = game.macro;
   const common = normal(game.scenarioSeed, month, "market:common");
@@ -364,14 +382,57 @@ function settleModernMarket(game) {
     metrics.variance = bound(0.9 * metrics.variance + 0.1 * own ** 2, 0.4, 3.5);
     const fundamentalGrowth =
       (asset.annualReturn - asset.dividendYield + response * 0.6) / 12;
+    let fundamentalShock =
+      0.003 * normal(game.scenarioSeed, month, `earnings:${asset.id}`);
+    let structuralReturn = 0,
+      tailReturn = 0;
+    if (risk) {
+      const cycleScale =
+        asset.category === "crypto"
+          ? 0.008
+          : asset.category === "gold"
+            ? 0.001
+            : asset.category === "commodity"
+              ? 0.004
+              : 0.003;
+      metrics.earningsCycle =
+        0.92 * (metrics.earningsCycle || 0) +
+        cycleScale * normal(game.scenarioSeed, month, `v4:cycle:${asset.id}`);
+      const fundamentalSigma =
+        (asset.volatility * (asset.category === "crypto" ? 0.62 : 0.55)) /
+        Math.sqrt(12);
+      const earningsShock =
+        0.4 * common +
+        0.916515 *
+          normal(game.scenarioSeed, month, `v4:fundamental:${asset.id}`);
+      fundamentalShock =
+        metrics.earningsCycle +
+        fundamentalSigma * earningsShock -
+        fundamentalSigma ** 2 / 2;
+      const sensitivity =
+        asset.category === "crypto"
+          ? 2.2
+          : asset.category === "gold"
+            ? -0.2
+            : asset.category === "commodity"
+              ? 0.8
+              : 1;
+      tailReturn = risk.shock * sensitivity;
+      structuralReturn =
+        asset.category === "gold" ? 0 : Math.min(0, tailReturn) * 0.35;
+    }
     metrics.fundamental *= Math.exp(
-      fundamentalGrowth +
-        0.003 * normal(game.scenarioSeed, month, `earnings:${asset.id}`),
+      fundamentalGrowth + fundamentalShock + structuralReturn,
     );
     metrics.earningsIndex = metrics.fundamental / asset.initialPrice;
     const valuationGap = Math.log(metrics.fundamental / old);
-    const reversion =
-      asset.category === "crypto"
+    const reversion = risk
+      ? asset.category === "crypto"
+        ? 0.003
+        : asset.category === "commodity"
+          ? 0.025
+          : 0.012
+      : asset.category === "crypto"
         ? 0.045
         : asset.category === "commodity"
           ? 0.09
@@ -394,7 +455,8 @@ function settleModernMarket(game) {
       reversion * valuationGap +
       sigma * shock -
       sigma ** 2 / 2 +
-      newsEffect;
+      newsEffect +
+      tailReturn;
     game.prices[asset.id] = Math.max(1, Math.round(old * Math.exp(returnRate)));
     metrics.valuation = game.prices[asset.id] / metrics.fundamental;
     metrics.volatility =
@@ -419,6 +481,6 @@ function settleModernMarket(game) {
 }
 
 export function settleMarket(game) {
-  if (game.marketVersion === 3) settleModernMarket(game);
+  if (game.marketVersion >= 3) settleModernMarket(game);
   else settleLegacyMarket(game);
 }

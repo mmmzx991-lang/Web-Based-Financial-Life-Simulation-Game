@@ -1,6 +1,6 @@
 # Shared implementation contract
 
-All new game states use save version 2 and marketVersion 3; monetary numbers are integer sen. `ageMonths` is absolute age*12; `elapsedMonths` counts completed monthly records. End birthday is exclusive. `history` includes the initial snapshot at elapsedMonths 0, then one snapshot per completed month. `status`: active | paused | completed | bankrupt. `remainingAdvance` holds unfinished months. `prices` maps asset ID to sen per unit. Price path must depend on scenario/month only, never action or portfolio RNG consumption.
+All new game states use save version 2 and marketVersion 4; monetary numbers are integer sen. `ageMonths` is absolute age*12; `elapsedMonths` counts completed monthly records. End birthday is exclusive. `history` includes the initial snapshot at elapsedMonths 0, then one snapshot per completed month. `status`: active | paused | completed | bankrupt. `remainingAdvance` holds unfinished months. `prices` maps asset ID to sen per unit. Price path must depend on scenario/month only, never action or portfolio RNG consumption.
 
 ## Core exports
 

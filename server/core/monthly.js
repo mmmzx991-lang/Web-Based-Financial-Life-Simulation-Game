@@ -97,7 +97,8 @@ function legacyRentalIncome(game, ledger, target) {
 }
 
 function rentalIncome(game, ledger, target) {
-  if (game.marketVersion !== 3) return legacyRentalIncome(game, ledger, target);
+  if ((game.marketVersion ?? 2) < 3)
+    return legacyRentalIncome(game, ledger, target);
   const demand = game.macro.rentDemand;
   for (const property of game.properties) {
     const config = PROPERTY_TYPES[property.type];
@@ -233,7 +234,7 @@ function businessIncome(game, ledger, target) {
     let costs = Math.round(
       config.operatingCost * (1 + ((b.activeLevel || 1) - 1) * 0.12),
     );
-    if (game.marketVersion === 3)
+    if (game.marketVersion >= 3)
       ({ revenue, costs } = modernBusinessResults(game, b, config, target));
     b.lastRevenue = revenue;
     b.lastOperatingCost = costs;
@@ -372,7 +373,7 @@ function settleMonth(game) {
   for (const asset of ASSETS)
     ledger.dividends += Math.round(
       ((game.holdings[asset.id]?.quantity || 0) *
-        (game.marketVersion === 3
+        (game.marketVersion >= 3
           ? game.assetMetrics[asset.id].fundamental
           : game.prices[asset.id]) *
         asset.dividendYield) /

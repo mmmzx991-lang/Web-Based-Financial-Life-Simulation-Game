@@ -11,6 +11,37 @@ export const text = (value) =>
     ? value[language] || value.en || ""
     : String(value ?? "");
 const words = {
+  versusBenchmark: ["Ahead / behind benchmark", "领先／落后基准"],
+  benchmarkHint: [
+    "Compare your choices against the same starting life using conservative saving. Salary and total wealth are not trading profit.",
+    "与相同初始条件下的保守储蓄方案比较。工资和总财富增长不等于交易盈利。",
+  ],
+  quickAccess: ["Your next move", "下一步行动"],
+  quickMarket: ["Discover 15 investment assets", "查看15种投资资产"],
+  quickPortfolio: [
+    "Manage holdings and leveraged positions",
+    "管理资产与杠杆仓位",
+  ],
+  quickBank: ["Keep cash ready and build savings", "安排现金与储蓄"],
+  quickReport: [
+    "Review results against your benchmark",
+    "对比基准，回顾投资表现",
+  ],
+  processing: ["Saving your decision…", "正在处理并保存…"],
+  reviewIssue: ["Review pending decision", "处理待办事项"],
+  lifeProgress: ["Life progress", "人生进度"],
+  maxQuantity: ["Max", "最大"],
+  orderSize: ["Choose order size", "快捷选择数量"],
+  presetHint: [
+    "Percentages use available cash for buys and unlocked holdings for sells.",
+    "买入比例按可用现金计算，卖出比例按已解锁持仓计算。",
+  ],
+  invalidOrder: [
+    "Enter a valid quantity at the required step.",
+    "请按最小单位输入有效数量。",
+  ],
+  settledMonths: ["Months settled", "已结算月数"],
+  positionCount: ["Open positions", "当前仓位"],
   brand: ["Investment Game", "投资人生"],
   tagline: ["PLAY YOUR FUTURE", "每个选择，塑造未来"],
   home: ["Home", "首页"],
@@ -172,6 +203,12 @@ const words = {
     "可提取存款或卖出已解锁资产支付账单。待成交出售不会立即提供现金。每笔账单可延期一次，请核对延期费用。",
   ],
   extensionUsed: ["Extension already used", "已使用过延期"],
+  marketSelloff: ["Broad market sell-off", "市场集中抛售"],
+  marketRally: ["Broad market rally", "市场集中上涨"],
+  marketShockHint: [
+    "Risk assets are reacting to a shared liquidity shock. Individual instruments can respond differently.",
+    "风险资产正受到共同流动性变化影响，不同资产的表现可能分化。",
+  ],
   marketTitle: ["Investment markets", "投资市场"],
   marketDescription: [
     "Follow each market, compare opportunities and choose where your money goes.",

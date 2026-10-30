@@ -1,6 +1,6 @@
-# Simulation implementation notes (save v2 / market v3)
+# Simulation implementation notes (save v2 / market v4)
 
-New games use the v3 market model described in [MARKET-MODEL.md](MARKET-MODEL.md); old saves retain legacy v2 behavior. Crypto quantities use exact hundredths, with each holding/position rounded separately at the integer-sen accounting boundary.
+New games use the v4 market model described in [MARKET-MODEL.md](MARKET-MODEL.md); old saves retain legacy v2 behavior. Crypto quantities use exact hundredths, with each holding/position rounded separately at the integer-sen accounting boundary.
 
 Money is integer sen. Every exported transition clones its input. `history` is append-only: the first snapshot is elapsed month zero, followed by exactly one closing snapshot for each completed month. `report().history` is the same history array. Current actions may change the live balance between closing snapshots; charts use the saved snapshots.
 

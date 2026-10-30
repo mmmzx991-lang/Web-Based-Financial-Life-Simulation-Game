@@ -20,11 +20,11 @@ const order = (
   leverage = 1,
 ) => trade(game, { assetId, quantity, side, leverage });
 
-test("new games isolate the standard v3 market without changing save format", () => {
+test("new games isolate the standard v4 market without changing save format", () => {
   const game = createGame();
   assert.equal(game.version, 2);
-  assert.equal(game.marketVersion, 3);
-  assert.equal(game.scenarioSeed, hash("full-life|normal|standard-v3"));
+  assert.equal(game.marketVersion, 4);
+  assert.equal(game.scenarioSeed, hash("full-life|normal|standard-v4"));
   delete game.marketVersion;
   assert.doesNotThrow(() => order(game, 1));
 });

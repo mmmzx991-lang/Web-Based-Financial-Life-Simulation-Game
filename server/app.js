@@ -284,7 +284,7 @@ export function createApp({
           const game = record.game;
           if (
             game.version !== 2 ||
-            (game.marketVersion ?? 2) !== 3 ||
+            (game.marketVersion ?? 2) !== 4 ||
             game.ruleset !== "standard" ||
             game.status !== "completed" ||
             game.ageMonths < game.endAgeMonths ||

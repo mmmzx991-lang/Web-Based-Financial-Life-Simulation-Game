@@ -2,7 +2,7 @@
 
 Source: the CAT404 proposal supplied on 30 October 2026. This is an implementation mapping, not a claim of academic acceptance or completed user evaluation.
 
-| Section | Behavior in v0.3 |
+| Section | Behavior in v0.4 |
 | --- | --- |
 | 5.1 modes | Exact four age windows and total months; endpoint excludes extra salary/bills |
 | 5.2 starting finances | Exact difficulty cash/salary; later salary compounding; no initial investments |
@@ -19,6 +19,6 @@ Source: the CAT404 proposal supplied on 30 October 2026. This is an implementati
 | 5.13 verification | Core/API/view regressions, real browser full run, 20-account short concurrent exercise |
 | UI revision | Navy/teal/ivory, separate readable labels, original isometric SVG world, desktop/sidebar and phone/bottom navigation; English/Chinese switch |
 
-Balance details absent from the proposal are explicit in config and CORE-NOTES. Stock names are fictional implementation choices. The benchmark earns conservative interest on positive cash and keeps opening properties occupied. Required event pauses currently use career reviews; property vacancy changes are recorded automatically. Free varies the scenario and stores private results, with no custom rule editor. Crypto orders use 0.01-coin increments; other assets use whole units. The v3 market adds persistent macro factors, correlated shocks, variable regimes and valuation reversion; see MARKET-MODEL.md. These are transparent simplifications for the educational MVP.
+Balance details absent from the proposal are explicit in config and CORE-NOTES. Stock names are fictional implementation choices. The benchmark earns conservative interest on positive cash and keeps opening properties occupied. Required event pauses currently use career reviews; property vacancy changes are recorded automatically. Free varies the scenario and stores private results, with no custom rule editor. Crypto orders use 0.01-coin increments; other assets use whole units. The v4 market retains persistent macro factors, correlated shocks, variable regimes and valuation reversion, with additional persistent earnings uncertainty, weaker recovery pull and liquidity tail events; see MARKET-MODEL.md. These are transparent simplifications for the educational MVP.
 
 Still outside this delivery: sustained production load tests, external deployment/HTTPS/backups, email verification/password reset, real user study, economic balancing research and university acceptance testing. No real data feeds or payments are connected. Legacy anonymous v1 saves are not migrated.

@@ -45,7 +45,7 @@ const paths = {
 export const icon = (name) =>
   `<svg viewBox="0 0 24 24" class="icon" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="${paths[name] || paths.life}"/></svg>`;
 const navButton = (id, active, mobile = false) =>
-  `<button class="nav-item ${active === id ? "is-active" : ""}" data-view="${id}" ${active === id ? 'aria-current="page"' : ""}>${icon(id)}<span>${t(id)}</span></button>`;
+  `<button class="nav-item ${active === id || (mobile && id === "more" && !["life", "market", "assets", "news"].includes(active)) ? "is-active" : ""}" data-view="${id}" ${active === id ? 'aria-current="page"' : ""}>${icon(id)}<span>${t(id)}</span></button>`;
 const button = (label, attrs = "", kind = "primary") =>
   `<button class="button ${kind}" ${attrs}>${label}</button>`;
 const pill = (label, kind = "") => `<span class="pill ${kind}">${label}</span>`;
@@ -61,7 +61,7 @@ const numeric = (name, value = "1", step = 1) =>
   input(
     name,
     value,
-    `type="number" required min="${step}" step="${step}" inputmode="${step === 1 ? "numeric" : "decimal"}"`,
+    `type="number" required max="100000000" min="${step}" step="${step}" inputmode="${step === 1 ? "numeric" : "decimal"}"`,
   );
 const amount = (name = "amount", value = "1000") =>
   input(
@@ -109,8 +109,8 @@ export function shell(state, content) {
     "report",
   ];
   return `<header class="app-header"><button class="brand" data-view="${game ? "life" : "home"}"><span class="brand-mark">↗</span><span>${t("brand")}<small>${t("tagline")}</small></span></button><div class="header-context">${game ? `<strong>${headingState(game, summary)}</strong><span>${modeLabel(game.mode)} / ${t(game.difficulty)} / ${t(game.ruleset)}</span>` : ""}</div><div class="header-actions"><button class="language-button" data-language="${getLanguage() === "en" ? "zh" : "en"}" aria-label="${t("language")}">${icon("globe")}<span>${getLanguage() === "en" ? "中文" : "English"}</span></button><button class="avatar" ${signed ? 'data-view="profile"' : 'data-auth="login"'} aria-label="${signed ? t("profile") : t("signin")}">${signed ? E(state.user.displayName?.slice(0, 2).toUpperCase() || "IG") : icon("profile")}</button></div></header>
-  <div class="app-layout ${game ? "has-sidebar" : ""}">${game ? `<aside class="sidebar"><p class="nav-caption">${t("brand")}</p><nav aria-label="${t("life")}">${navigation.map((id) => navButton(id, state.view)).join("")}</nav><div class="sidebar-bottom">${navButton("leaderboard", state.view)}${navButton("profile", state.view)}${navButton("help", state.view)}<div class="autosave-note">${icon("save")}<span>${t("autosaved")}</span></div></div></aside>` : ""}<main id="main" tabindex="-1">${content}<footer>${t("brand")} · ${t("tagline")}</footer></main></div>
-  ${game ? `<nav class="mobile-nav" aria-label="${t("life")}">${["life", "market", "assets", "news", "more"].map((id) => navButton(id, state.view, true)).join("")}</nav>` : ""}`;
+  <div class="app-layout ${game ? "has-sidebar" : ""}">${game ? `<aside class="sidebar"><p class="nav-caption">${t("brand")}</p><nav aria-label="${t("life")}">${navigation.map((id) => navButton(id, state.view)).join("")}</nav><div class="sidebar-bottom">${navButton("leaderboard", state.view)}${navButton("profile", state.view)}${navButton("help", state.view)}<div class="autosave-note">${icon("save")}<span>${t("autosaved")}</span></div></div></aside>` : ""}<main id="main" tabindex="-1">${game ? sessionBar(state) : ""}${content}<footer>${t("brand")} · ${t("tagline")}</footer></main></div>
+  ${state.busy ? `<div class="request-progress" role="status"><span>${t("processing")}</span></div>` : ""}${game ? `<nav class="mobile-nav" aria-label="${t("life")}">${["life", "market", "assets", "news", "more"].map((id) => navButton(id, state.view, true)).join("")}</nav>` : ""}`;
 }
 export function home(state) {
   return `<section class="home-hero"><div><p class="eyebrow">${t("tagline")}</p><h1>${t("heroTitle").replace("\n", "<br>")}</h1><p class="hero-description">${t("heroDescription")}</p><div class="hero-actions">${button(`${t("start")} ${icon("arrow")}`, 'data-view="setup"')}${state.session ? button(t("continue"), 'data-view="life"', "secondary") : button(t("signin"), 'data-auth="login"', "secondary")}</div><div class="hero-facts"><span>${t("fourModes")}</span><span>${t("fourLevels")}</span><span>${t("fifteenAssets")}</span></div></div><div class="hero-map">${scene()}<span class="map-tag map-tag-one">${icon("market")}${t("marketStreet")}</span><span class="map-tag map-tag-two">${icon("property")}${t("propertyQuarter")}</span><span class="map-tag map-tag-three">${icon("business")}${t("businessAvenue")}</span></div></section><div class="home-intro"><h2>${t("monthRhythm")}</h2><div class="three-columns">${[
@@ -160,11 +160,36 @@ export function pausedBanner(game) {
   return `<section class="pause-banner ${bill ? "danger" : ""}" role="status"><div>${icon("warning")}<h2>${bill ? t("billTitle") : t("pauseTitle")}</h2></div>${event ? `<h3>${E(text(event.title))}</h3><p>${E(text(event.body))}</p>` : ""}${bill ? `${line(t("billAmount"), money(bill.amount))}${line(t("cash"), money(game.cash))}${line(t("shortfall"), money(Math.max(0, bill.amount - game.cash)))}<p>${t("billHint")}</p>` : ""}<p>${t("remaining")}: ${game.remainingAdvance || 0}</p><div class="action-row">${event ? actionButton(t("resolve"), "acknowledge-event") : ""}${bill ? actionButton(t("payBill"), "pay-bill") + (!bill.extended ? actionButton(t("extendBill"), "extend-bill") : pill(t("extensionUsed"))) : ""}${(!bill || (bill.extended && !game.pendingSettlement)) && !event ? actionButton(t("resume"), "resume", {}, "primary") : ""}${bill && game.pendingSettlement ? actionButton(t("declareBankruptcy"), "declare-bankruptcy", {}, "danger-button") : ""}</div></section>`;
 }
 function advanceButtons(game) {
+  if (!canAct(game))
+    return button(t("viewReport"), 'data-view="report"', "secondary");
+  if (game.status === "paused")
+    return button(t("reviewIssue"), 'data-view="life"', "secondary");
   return `<div class="action-row">${actionButton(t("nextMonth"), "advance", { months: 1 }, "primary")}${actionButton(t("nextThree"), "advance", { months: 3 }, "secondary")}</div>`;
 }
+export function sessionBar(state) {
+  const g = state.session.game,
+    s = state.session.summary,
+    total = g.endAgeMonths - g.startAgeMonths,
+    progress = Math.min(100, (g.elapsedMonths / total) * 100);
+  return `<section class="session-bar ${g.status === "paused" ? "has-issue" : ""}" aria-label="${t("thisMonth")}"><div class="session-time"><span class="eyebrow">${modeLabel(g.mode)}</span><strong>${headingState(g, s)}</strong><progress value="${g.elapsedMonths}" max="${total}" aria-label="${t("lifeProgress")}"></progress></div><div class="session-cash"><span>${t("cash")}</span><strong>${money(g.cash)}</strong></div><div class="session-actions">${advanceButtons(g)}</div></section>`;
+}
+function shortcuts(state) {
+  return `<section class="quick-access" aria-label="${t("quickAccess")}">${[
+    ["market", "quickMarket"],
+    ["assets", "quickPortfolio"],
+    ["bank", "quickBank"],
+    ["report", "quickReport"],
+  ]
+    .map(
+      ([id, key]) =>
+        `<button class="shortcut-card" data-view="${id}"><span class="shortcut-icon">${icon(id)}</span><strong>${t(id)}</strong><span>${t(key)}</span>${icon("arrow")}</button>`,
+    )
+    .join("")}</section>`;
+}
+
 export function life(state) {
   const { game: g, summary: s } = state.session;
-  return `${title(t("tagline"), t("dashboardTitle"), t("dashboardDescription"))}${pausedBanner(g)}${!canAct(g) ? `<div class="notice">${t("completedHint")} ${button(t("viewReport"), 'data-view="report"', "secondary")}</div>` : ""}<div class="metrics four">${card(t("netWorth"), money(s.netWorth), `${t("realWealth")} ${money(s.realNetWorth)}`, "highlight")}${card(t("cash"), money(g.cash), `${t("savings")} ${money(g.savings)}`)}${card(t("salary"), money(g.monthlySalary), s.retired ? t("retired") : t("monthlyLiving") + " " + money(s.age < 45 ? 200000 : s.age < 60 ? 300000 : 250000))}${card(t("liabilities"), money(s.liabilities), `${t("priceIndex")} ${number(g.priceIndex)}`)}</div><div class="life-layout"><section class="panel life-world"><div class="panel-heading"><div><p class="eyebrow">${t("thisMonth")}</p><h2>${t(g.economy || "recovery")}</h2></div>${pill(t("autosaved"), "success")}</div>${scene()}<div class="world-destinations">${[
+  return `${title(t("tagline"), t("dashboardTitle"), t("dashboardDescription"))}${pausedBanner(g)}${!canAct(g) ? `<div class="notice">${t("completedHint")} ${button(t("viewReport"), 'data-view="report"', "secondary")}</div>` : ""}<div class="metrics four">${card(t("netWorth"), money(s.netWorth), `${t("realWealth")} ${money(s.realNetWorth)} · ${t("versusBenchmark")} ${money(s.realNetWorth - s.realBenchmark)}`, "highlight")}${card(t("cash"), money(g.cash), `${t("savings")} ${money(g.savings)}`)}${card(t("salary"), money(g.monthlySalary), s.retired ? t("retired") : t("monthlyLiving") + " " + money(s.age < 45 ? 200000 : s.age < 60 ? 300000 : 250000))}${card(t("liabilities"), money(s.liabilities), `${t("priceIndex")} ${number(g.priceIndex)}`)}</div>${shortcuts(state)}<div class="life-layout"><section class="panel life-world"><div class="panel-heading"><div><p class="eyebrow">${t("thisMonth")}</p><h2>${t(g.economy || "recovery")}</h2></div>${pill(t("autosaved"), "success")}</div>${scene()}<div class="world-destinations">${[
     ["market", "marketStreet"],
     ["property", "propertyQuarter"],
     ["business", "businessAvenue"],
@@ -255,7 +280,7 @@ export function market(state) {
       )}</section>`;
     })
     .join("");
-  return `${title(t("tagline"), filter === "all" ? t("marketTitle") : t(filter), selected ? t(selected[2]) : t("marketDescription"))}${pausedBanner(g)}${macro ? `<div class="metrics four market-macro">${card(t("policyRate"), percent(macro.policyRate))}${card(t("inflation"), percent(macro.inflation))}${card(t("economicGrowth"), percent(macro.growth))}${card(t("confidence"), percent(macro.confidence))}</div>` : ""}${overview}<div class="market-toolbar"><div class="filter-row"><button class="filter-chip ${filter === "all" ? "selected" : ""}" data-filter="all">${t("marketOverview")}</button>${filter === "commodities" ? ["all", "energy", "metals", "agriculture"].map((id) => `<button class="filter-chip ${subfilter === id ? "selected" : ""}" data-subfilter="${id}">${t(id)}</button>`).join("") : ""}${pill(t(g.economy || "expansion"), "success")}</div><div class="market-search-controls">${field(t("searchAssets"), `<input id="market-search" type="search" value="${E(state.marketSearch || "")}" placeholder="${t("searchAssets")}" autocomplete="off">`)}${field(
+  return `${title(t("tagline"), filter === "all" ? t("marketTitle") : t(filter), selected ? t(selected[2]) : t("marketDescription"))}${pausedBanner(g)}${g.marketState?.marketShock?.kind && g.marketState.marketShock.kind !== "normal" ? `<div class="notice" role="status"><strong>${t(g.marketState.marketShock.kind === "selloff" ? "marketSelloff" : "marketRally")}</strong><p>${t("marketShockHint")}</p></div>` : ""}${macro ? `<div class="metrics four market-macro">${card(t("policyRate"), percent(macro.policyRate))}${card(t("inflation"), percent(macro.inflation))}${card(t("economicGrowth"), percent(macro.growth))}${card(t("confidence"), percent(macro.confidence))}</div>` : ""}${overview}<div class="market-toolbar"><div class="filter-row"><button class="filter-chip ${filter === "all" ? "selected" : ""}" data-filter="all">${t("marketOverview")}</button>${filter === "commodities" ? ["all", "energy", "metals", "agriculture"].map((id) => `<button class="filter-chip ${subfilter === id ? "selected" : ""}" data-subfilter="${id}">${t(id)}</button>`).join("") : ""}${pill(t(g.economy || "expansion"), "success")}</div><div class="market-search-controls">${field(t("searchAssets"), `<input id="market-search" type="search" value="${E(state.marketSearch || "")}" placeholder="${t("searchAssets")}" autocomplete="off">`)}${field(
     t("sortBy"),
     select(
       "market-sort",
@@ -375,7 +400,7 @@ export function reports(state) {
     .filter((r) => r.elapsedMonths > 0)
     .slice(-24)
     .reverse();
-  return `${title(t("tagline"), s.completed || s.bankrupt ? t("reportTitle") : t("progressReport"))}<div class="report-top"><section class="score-hero"><p class="eyebrow">${s.completed ? t("finalScore") : t("score")}</p><strong>${Number(score.total || 0).toFixed(2)}<small> / 100</small></strong><span>${modeLabel(g.mode)} / ${t(g.difficulty)} / ${t(g.ruleset)}</span>${pill(t(g.status), s.completed ? "success" : "")}</section><section class="panel final-position"><h2>${t("balanceSheet")}</h2>${line(t("netWorth"), money(s.netWorth))}${line(t("realWealth"), money(s.realNetWorth))}${line(t("realWealth") + " · " + t("benchmark"), money(s.realBenchmark))}${line(t("assetsTotal"), money(s.assets))}${line(t("liabilities"), money(s.liabilities))}${button(t("download"), "data-download", "secondary")}</section></div><section class="panel"><div class="panel-heading"><h2>${t("wealthJourney")}</h2><div class="chart-legend"><span>${t("netWorth")}</span><span>${t("benchmark")}</span></div></div>${wealthChart(g.history, { wealth: t("netWorth"), benchmark: t("benchmark"), age: t("age") })}<p class="small muted">${t("reportHint")}</p></section><div class="metrics four">${[
+  return `${title(t("tagline"), s.completed || s.bankrupt ? t("reportTitle") : t("progressReport"))}<div class="report-top"><section class="score-hero"><p class="eyebrow">${s.completed ? t("finalScore") : t("score")}</p><strong>${Number(score.total || 0).toFixed(2)}<small> / 100</small></strong><span>${modeLabel(g.mode)} / ${t(g.difficulty)} / ${t(g.ruleset)}</span>${pill(t(g.status), s.completed ? "success" : "")}</section><section class="panel final-position"><h2>${t("balanceSheet")}</h2>${line(t("netWorth"), money(s.netWorth))}${line(t("realWealth"), money(s.realNetWorth))}${line(t("realWealth") + " · " + t("benchmark"), money(s.realBenchmark))}${line(t("versusBenchmark"), money(s.realNetWorth - s.realBenchmark))}<p class="small muted">${t("benchmarkHint")}</p>${line(t("assetsTotal"), money(s.assets))}${line(t("liabilities"), money(s.liabilities))}${button(t("download"), "data-download", "secondary")}</section></div><section class="panel"><div class="panel-heading"><h2>${t("wealthJourney")}</h2><div class="chart-legend"><span>${t("netWorth")}</span><span>${t("benchmark")}</span></div></div>${wealthChart(g.history, { wealth: t("netWorth"), benchmark: t("benchmark"), age: t("age") })}<p class="small muted">${t("reportHint")}</p></section><div class="metrics four">${[
     ["wealth", "wealthScore", "60%"],
     ["risk", "riskScore", "15%"],
     ["cashFlow", "cashFlowScore", "15%"],
@@ -466,7 +491,7 @@ export function tradeDialog(state, assetId) {
       ],
       "buy",
     ),
-  )}${field(t("quantity"), numeric("quantity", a.category === "crypto" ? "0.01" : "10", step))}${field(
+  )}${field(t("quantity"), numeric("quantity", a.category === "crypto" ? "0.01" : "10", step))}<div class="quantity-presets" role="group" aria-label="${t("orderSize")}">${[25, 50, 100].map((n) => button(n === 100 ? t("maxQuantity") : `${n}%`, `type="button" data-quantity-preset="${n}"`, "secondary compact")).join("")}</div><p class="small muted">${t("presetHint")}</p>${field(
     t("leverage"),
     select(
       "leverage",
@@ -476,7 +501,7 @@ export function tradeDialog(state, assetId) {
       ]),
       1,
     ),
-  )}<div id="trade-quote" class="quote-box"></div><p id="dialog-error" class="negative" role="alert"></p>${button(t("confirm"), 'type="submit"', "primary full-width")}</form></div>`;
+  )}<div id="trade-quote" class="quote-box" aria-live="polite"></div><p id="order-feedback" class="negative" role="status"></p><p id="dialog-error" class="negative" role="alert"></p>${button(t("confirm"), 'type="submit"', "primary full-width")}</form></div>`;
 }
 
 export function positionCards(state) {

@@ -30,11 +30,11 @@ Open **http://127.0.0.1:3000**. Runtime has no third-party dependencies; `npm in
 - **Banking and difficulties**: deposits, retirement saving/withdrawal, fixed amortizing loans, unpaid liabilities, one fee-bearing bill extension and bankruptcy reports. Transfers, loan principal and business distributions never become fictitious new income.
 - **Accounts and saves**: password hashing, independent accounts, guest upgrade, durable sessions, automatic saves, persisted request identifiers, owner checks and retry-safe state changes.
 - **Reports and leaderboard**: opening snapshot plus monthly history, nominal/real wealth chart, conservative benchmark, weighted score, localized CSV downloads; one best completed Standard result per player/mode/difficulty.
-- **Responsive bilingual UI**: categorized stock/crypto/gold/commodity markets, energy/metals/agriculture filters, search/sort, instrument price histories and order details; homepage, setup, life board, market, portfolio, news, property, business, bank, reports, leaderboard, profile and help; keyboard focus and mobile navigation.
+- **Responsive bilingual UI**: sticky month/cash/progress controls, dashboard shortcuts, exact-step trade size presets, inline order validation and dialog focus restoration; categorized stock/crypto/gold/commodity markets, energy/metals/agriculture filters, search/sort, instrument price histories and order details; homepage, setup, life board, market, portfolio, news, property, business, bank, reports, leaderboard, profile and help; keyboard focus and mobile navigation.
 
 已完成四种人生模式与四难度初始场景、月度推进、15 种资产与锁仓及杠杆、四种经济状态和 60 条双语新闻、房产出租出售、企业经营、银行与贷款、欠账延期及破产、账户与自动存档、财富图表、评分、排行榜及中英文 CSV 报告。
 
-New games use market model v3; existing v2 saves retain their original rules and are excluded from the current leaderboard. See [market model](docs/MARKET-MODEL.md).
+V4 adds persistent issuer/adoption uncertainty, weaker valuation pull and liquidity tail events; benchmark-relative results distinguish decisions from salary accumulation. New games use market model v4; existing v2/v3 saves retain their original rules and are excluded from the current leaderboard. See [market model](docs/MARKET-MODEL.md).
 
 加密货币支持 0.01 个起步及递增。市场按股票、加密货币、黄金和商品分类，商品再细分能源、金属及农产品。新开人生采用升级算法；旧存档继续原规则，排行榜只接受当前算法的新游戏。
 

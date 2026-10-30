@@ -66,7 +66,26 @@ try {
     );
   };
   await nav("market");
+  assert.equal(
+    await page.locator('.session-bar [data-action="advance"]').count(),
+    2,
+  );
   await page.locator("[data-trade]").first().click();
+  await page.locator('[data-quantity-preset="25"]').click();
+  assert.ok(
+    Number(await page.locator('#trade-form [name="quantity"]').inputValue()) >
+      0,
+  );
+  await page.locator('[data-quantity-preset="100"]').click();
+  assert.equal(
+    await page.locator('#trade-form button[type="submit"]').isEnabled(),
+    true,
+  );
+  await page.locator('#trade-form [name="quantity"]').fill("100000000");
+  assert.equal(
+    await page.locator('#trade-form button[type="submit"]').isDisabled(),
+    true,
+  );
   await page.locator('#trade-form [name="quantity"]').fill("10");
   await page.locator('#trade-form [name="leverage"]').selectOption("2");
   const quote = await page
@@ -95,6 +114,9 @@ try {
     /locked|eligible/i,
   );
   await page.locator("#dialog-close").click();
+  await page.waitForFunction(() =>
+    document.activeElement?.hasAttribute("data-trade"),
+  );
   await page.locator('[data-market-group="crypto"]').click();
   assert.equal(await page.locator("[data-trade]").count(), 2);
   await page.locator('[data-trade="bitcoin"]').click();
@@ -414,7 +436,7 @@ try {
         mobile: "390x844",
         fullRunMonths: 276,
         checks:
-          "guest, setup, trade lock, 0.01 crypto buy/sell, market categories/search/sort, leverage margin/liquidation previews, locked positions, partial/full close, savings, business, event pause, account upgrade, reload, every mobile view, final report and leaderboard",
+          "guest, setup, trade lock, 0.01 crypto buy/sell, market categories/search/sort, sticky session actions, order quantity presets/validation, dialog focus return, leverage margin/liquidation previews, locked positions, partial/full close, savings, business, event pause, account upgrade, reload, every mobile view, final report and leaderboard",
         screenshots,
       },
       null,

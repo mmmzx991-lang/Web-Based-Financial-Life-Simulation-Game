@@ -1,5 +1,5 @@
 import { positionMetrics, closeQuote } from "./leverage-math.js";
-import { orderValue } from "./order-math.js";
+import { orderValue, maximumQuantity } from "./order-math.js";
 import { t, setLanguage, getLanguage, text, money, errorText } from "./i18n.js";
 import {
   pages,
@@ -35,7 +35,8 @@ function setUser(user) {
 let authMode = "login",
   dialogType = "",
   dialogAsset = "",
-  confirmResolver;
+  confirmResolver,
+  dialogOrigin = "";
 setLanguage(getLanguage());
 async function api(path, method = "GET", body) {
   const response = await fetch(path, {
@@ -126,9 +127,18 @@ async function work(task, { modal = false } = {}) {
     dialog
       .querySelectorAll('button[type="submit"]')
       .forEach((b) => (b.disabled = false));
+    if (dialog.open && dialogType === "trade") updateQuote();
+    if (dialog.open && dialogType === "close-position") updateCloseQuote();
   }
 }
 function openDialog(content, type) {
+  if (!dialog.open) {
+    const active = document.activeElement;
+    const key = ["trade", "closePosition", "auth", "action"].find(
+      (k) => active?.dataset?.[k],
+    );
+    dialogOrigin = key ? JSON.stringify([key, active.dataset[key]]) : "";
+  }
   dialog.classList.toggle("trade-dialog", type === "trade");
   dialogBody.innerHTML = content;
   dialogType = type;
@@ -140,6 +150,16 @@ function openDialog(content, type) {
 function closeDialog() {
   dialog.close();
   dialogType = "";
+  const origin = dialogOrigin;
+  requestAnimationFrame(() => {
+    const pair = origin ? JSON.parse(origin) : null;
+    const target = pair
+      ? [...document.querySelectorAll("button")].find(
+          (b) => b.dataset[pair[0]] === pair[1],
+        )
+      : null;
+    (target || document.getElementById("main"))?.focus({ preventScroll: true });
+  });
   if (confirmResolver) {
     confirmResolver(false);
     confirmResolver = null;
@@ -212,12 +232,18 @@ async function act(action) {
     pending = { fingerprint, requestId: crypto.randomUUID() };
   localStorage.setItem(key, JSON.stringify(pending));
   try {
+    const beforeMonth = state.session.game.elapsedMonths;
     state.session = await api(`/api/games/${id}/action`, "POST", {
       requestId: pending.requestId,
       action,
     });
     localStorage.removeItem(key);
-    toast(t("saved"));
+    const months = state.session.game.elapsedMonths - beforeMonth;
+    toast(
+      months > 0
+        ? `${t("settledMonths")}: ${months} · ${t("cash")}: ${money(state.session.game.cash)}`
+        : t("saved"),
+    );
     if (["completed", "bankrupt"].includes(state.session.game.status))
       state.view = "report";
   } catch (e) {
@@ -278,6 +304,15 @@ function updateQuote() {
   if (side === "buy" && margin + fee > g.cash)
     detail += `<p class="negative">${t("cashShort")}</p>`;
   document.getElementById("trade-quote").innerHTML = detail;
+  const valid = form.elements.quantity.validity.valid && value > 0,
+    unaffordable = side === "buy" && margin + fee > g.cash;
+  document.getElementById("order-feedback").textContent = !valid
+    ? t("invalidOrder")
+    : unaffordable
+      ? t("cashShort")
+      : "";
+  form.querySelector("[type=submit]").disabled =
+    state.busy || !valid || unaffordable;
 }
 
 function updateCloseQuote() {
@@ -362,11 +397,11 @@ async function perform(action) {
 }
 document.addEventListener("click", async (e) => {
   const el = e.target.closest("button,[data-view]");
-  if (!el || el.disabled) return;
+  if (!el || el.disabled || state.busy) return;
   if (el.dataset.confirm) {
     const resolve = confirmResolver;
     confirmResolver = null;
-    dialog.close();
+    closeDialog();
     resolve?.(el.dataset.confirm === "yes");
     return;
   }
@@ -436,6 +471,34 @@ document.addEventListener("click", async (e) => {
     const form = document.getElementById("close-position-form");
     form.elements.quantity.value = form.elements.quantity.max;
     updateCloseQuote();
+    return;
+  }
+  if (el.dataset.quantityPreset) {
+    const form = document.getElementById("trade-form"),
+      g = state.session.game,
+      a = state.config.assets.find((a) => a.id === dialogAsset),
+      scale = a.category === "crypto" ? 100 : 1;
+    const max =
+      form.elements.side.value === "sell"
+        ? Math.max(
+            0,
+            Math.round((g.holdings[a.id]?.quantity || 0) * scale) -
+              Math.round((g.holdings[a.id]?.lockedQuantity || 0) * scale),
+          ) / scale
+        : maximumQuantity(
+            a,
+            g.prices[a.id],
+            g.cash,
+            Number(form.elements.leverage.value),
+            state.config.tradeFeeRate ?? 0.002,
+            state.config.settings.maximumAmount,
+          );
+    form.elements.quantity.value = String(
+      Math.floor(
+        (Math.round(max * scale) * Number(el.dataset.quantityPreset)) / 100,
+      ) / scale,
+    );
+    updateQuote();
     return;
   }
   if (el.dataset.trade) {

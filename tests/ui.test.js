@@ -135,3 +135,17 @@ test("fractional display uses exact integer-sen valuation", async () => {
   setLanguage("en");
   assert.match(pages.assets(fixture), /0\.15/);
 });
+
+test("session bar offers advance only for active runs and routes paused and completed games", () => {
+  for (const status of ["active", "paused", "completed"]) {
+    const fixture = structuredClone(state);
+    fixture.view = "market";
+    fixture.session.game.status = status;
+    const html = shell(fixture, "");
+    assert.match(html, /session-bar/);
+    const bar =
+      html.match(/<section class="session-bar[\s\S]*?<\/section>/)?.[0] || "";
+    if (status === "active") assert.match(bar, /data-action="advance"/);
+    else assert.doesNotMatch(bar, /data-action="advance"/);
+  }
+});

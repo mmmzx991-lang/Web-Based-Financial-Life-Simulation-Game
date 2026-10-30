@@ -1,3 +1,21 @@
+# Current market model v4
+
+New games use marketVersion 4 and Standard scenario label standard-v4. Existing v3 and unversioned/v2 saves retain their original dynamics; current leaderboard accepts v4 only. Salary, fixed life budgets, asset counts, monthly pricing, fees and the 15% leveraged liquidation rule stay unchanged.
+
+## Why v4
+
+A five-year price-only inspection over 120 fixed Free seeds found Meridian Technology profitable in 115/120 v3 scenarios. Its fundamental grew almost deterministically (only a 0.3% monthly earnings shock) and prices reverted strongly to that anchor. This created unusually reliable long-horizon recovery and a favorable buy-below-anchor signal.
+
+V4 replaces that near-fixed anchor with persistent issuer earnings/adoption cycles (AR 0.92), category-scaled stochastic fundamentals, common earnings shocks, and permanent impairment from shared liquidity sell-offs. Valuation reversion is slower: 1.2% monthly for stocks/gold, 0.3% for crypto and 2.5% for commodities. There is no guaranteed return to an old price.
+
+Liquidity sell-off probability is 0.8% + 2% times macro credit stress per month; rallies occur on the upper 1.2% of the same independent draw. Stock log shocks range from -7% to -23% for sell-offs, +4% to +13% for rallies. Crypto sensitivity is 2.2, commodities 0.8 and gold -0.2. A sell-off impairs non-gold fundamentals by 35% of its log impact. All addresses depend only on scenario/month/instrument, never player choices. These are fictional balance parameters, not real-market calibration.
+
+Reproduce the comparison with node scripts/market-balance-check.mjs: v4 Meridian wins 88/120, with 32 losses and 62 scenarios exceeding 30% drawdown. BTC wins 33/120 (median price return -46.1%, 90th percentile +105.0%). BTC valuation-below-0.8 signals win next month in 48.8% of 3,354 observations (v3:56.1%). Results exclude dividends, fees, salaries and optimized strategies; they are sample regressions, not acceptance of final game balance.
+
+A 100-seed x 696-month numerical run returned only positive safe-integer prices (range 1–1,160,877,884 sen). There were 296 observations at the one-sen currency floor; unlike v3, severe speculative losses can reach that representational boundary. Further balancing/user playtesting remains necessary.
+
+## Preserved v3 model
+
 # Fictional monthly market, version 3
 
 These are developer balancing notes. They describe a fictional simulation, not real security prices or forecasts. No external feeds are used.
