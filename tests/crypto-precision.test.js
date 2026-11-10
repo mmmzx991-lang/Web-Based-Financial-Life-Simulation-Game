@@ -8,7 +8,8 @@ import {
   act,
   report,
 } from "../server/core/simulation.js";
-import { fee, settleBaseline, values } from "../server/core/finance.js";
+import { settleBaseline, values } from "../server/core/finance.js";
+import { tradeFee as fee } from "../public/order-math.js";
 import { hash } from "../server/core/market.js";
 
 const crypto = ASSETS.filter((asset) => asset.category === "crypto");
@@ -206,7 +207,7 @@ test("fractional leveraged positions preserve lock, margin cap, close rounding a
         0,
         Math.round(position.margin + 0.29 * (14567 - 12345)),
       );
-    const closeFee = Math.min(equity, fee(Math.round(14567 * 0.29)));
+    const closeFee = fee(Math.round(14567 * 0.29));
     game = act(game, { type: "close-position", positionId: position.id });
     assert.equal(game.cash, before + equity - closeFee);
     assert.equal(game.actionLedger.fees, closeFee);

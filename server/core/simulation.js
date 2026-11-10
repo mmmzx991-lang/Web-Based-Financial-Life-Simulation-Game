@@ -1,4 +1,5 @@
 import { closeQuote } from "../../public/leverage-math.js";
+import { tradeFee } from "../../public/order-math.js";
 import {
   MODES,
   DIFFICULTIES,
@@ -18,7 +19,6 @@ import {
 import {
   demand,
   emptyLedger,
-  fee,
   money,
   nextId,
   snapshot,
@@ -200,7 +200,7 @@ export function trade(state, { assetId, side, quantity, leverage = 1 } = {}) {
     "Order too large",
   );
   demand(exposure > 0, "Order too small; value must be at least one sen");
-  const cost = fee(exposure);
+  const cost = tradeFee(exposure);
   if (side === "buy") {
     // A paused run permits raising funds; it cannot add new investment risk.
     demand(
@@ -251,7 +251,7 @@ export function trade(state, { assetId, side, quantity, leverage = 1 } = {}) {
           units,
       "Insufficient eligible holdings; new holdings are locked",
     );
-    game.cash += exposure - cost;
+    cashCost(game, cost - exposure);
     recordExpense(game, cost);
     h.quantity = quantityFromUnits(
       assetId,
@@ -393,7 +393,7 @@ export function act(state, action = {}) {
         action.quantity === undefined ? p.quantity : action.quantity,
         SETTINGS.tradeFee,
       );
-      game.cash += quote.proceeds;
+      cashCost(game, -quote.proceeds);
       recordExpense(game, quote.fee);
       game.positions = quote.remaining
         ? game.positions.map((x) => (x.id === p.id ? quote.remaining : x))
