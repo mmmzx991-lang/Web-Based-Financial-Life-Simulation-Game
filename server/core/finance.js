@@ -26,7 +26,7 @@ export function usable(game) {
     "Game is complete",
   );
 }
-export const fee = (amount, rate = SETTINGS.tradeFee) =>
+export const fee = (amount, rate) =>
   Math.max(1, Math.round(amount * rate));
 export const positionEquity = (game, p) =>
   Math.max(

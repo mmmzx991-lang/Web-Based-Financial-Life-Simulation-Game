@@ -1,5 +1,5 @@
 import { positionMetrics, closeQuote } from "./leverage-math.js";
-import { orderValue, maximumQuantity } from "./order-math.js";
+import { orderValue, maximumQuantity, tradeFee } from "./order-math.js";
 import { t, setLanguage, getLanguage, text, money, errorText } from "./i18n.js";
 import {
   pages,
@@ -269,7 +269,7 @@ function updateQuote() {
     side = data.get("side");
   const asset = state.config.assets.find((a) => a.id === dialogAsset);
   const value = orderValue(asset, q, g.prices[dialogAsset]),
-    fee = Math.max(1, Math.round(value * (state.config.tradeFeeRate ?? 0.002)));
+    fee = value > 0 ? tradeFee(value, state.config.tradeFeeRate) : 0;
   const row = (label, value) =>
     `<div class="detail-row"><span>${t(label)}</span><strong>${value}</strong></div>`;
   const margin = Math.max(1, Math.round(value / leverage));
@@ -295,17 +295,16 @@ function updateQuote() {
     );
     detail += `<p class="small muted">${t("liquidationHint")}</p>`;
   }
+  const cashNeeded = side === "buy" ? margin + fee : fee - value;
   detail +=
     row("transactionFee", money(fee)) +
     row(
-      side === "buy" ? "cashRequired" : "cash",
-      money(side === "buy" ? margin + fee : Math.max(0, value - fee)),
+      cashNeeded > 0 ? "cashRequired" : "closeProceeds",
+      money(Math.abs(cashNeeded)),
     );
-  if (side === "buy" && margin + fee > g.cash)
-    detail += `<p class="negative">${t("cashShort")}</p>`;
   document.getElementById("trade-quote").innerHTML = detail;
   const valid = form.elements.quantity.validity.valid && value > 0,
-    unaffordable = side === "buy" && margin + fee > g.cash;
+    unaffordable = cashNeeded > g.cash;
   document.getElementById("order-feedback").textContent = !valid
     ? t("invalidOrder")
     : unaffordable
@@ -329,7 +328,7 @@ function updateCloseQuote() {
       p,
       g.prices[p.assetId],
       Number(form.elements.quantity.value),
-      state.config.tradeFeeRate ?? 0.002,
+      state.config.tradeFeeRate,
     );
     document.getElementById("close-quote").innerHTML =
       row("marginReleased", money(q.margin)) +
@@ -337,9 +336,15 @@ function updateCloseQuote() {
       row("closedPnl", money(q.pnl - q.fee)) +
       row("transactionFee", money(q.fee)) +
       row("remainingQuantity", String(q.remaining?.quantity || 0)) +
-      row("closeProceeds", money(q.proceeds));
-    document.getElementById("dialog-error").textContent = "";
-    form.querySelector('[type="submit"]').disabled = state.busy;
+      row(
+        q.proceeds < 0 ? "cashRequired" : "closeProceeds",
+        money(Math.abs(q.proceeds)),
+      );
+    const unaffordable = -q.proceeds > g.cash;
+    document.getElementById("dialog-error").textContent = unaffordable
+      ? t("cashShort")
+      : "";
+    form.querySelector('[type="submit"]').disabled = state.busy || unaffordable;
   } catch {
     document.getElementById("close-quote").innerHTML = "";
     document.getElementById("dialog-error").textContent = t("closeInvalid");
@@ -490,7 +495,7 @@ document.addEventListener("click", async (e) => {
             g.prices[a.id],
             g.cash,
             Number(form.elements.leverage.value),
-            state.config.tradeFeeRate ?? 0.002,
+            state.config.tradeFeeRate,
             state.config.settings.maximumAmount,
           );
     form.elements.quantity.value = String(

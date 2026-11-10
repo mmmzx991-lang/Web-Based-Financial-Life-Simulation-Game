@@ -75,7 +75,6 @@ test("partial closes do not create or lose sen across price directions and quant
 import { positionMetrics, closeQuote } from "../public/leverage-math.js";
 import { positionEquity } from "../server/core/finance.js";
 import { advance } from "../server/core/simulation.js";
-import { fee } from "../server/core/finance.js";
 const coin = { category: "crypto" };
 test("liquidation estimate matches exact monthly equity threshold on both sides", () => {
   for (const quantity of [0.01, 0.29, 1.17])
@@ -133,7 +132,7 @@ test("tiny partial closure cannot leave an uncollateralized position", () => {
     0,
   );
 });
-test("forced closing uses exposure fee for new positions, caps loss and records proceeds once", () => {
+test("forced closing returns remaining equity without charging a fee", () => {
   const g = opened(),
     p = g.positions[0];
   const preview = structuredClone(g);
@@ -146,17 +145,14 @@ test("forced closing uses exposure fee for new positions, caps loss and records 
   assert.equal(h.kind, "forced");
   assert.ok(h.equity > 0 && h.equity <= p.margin * 0.15);
   assert.equal(n.stats.forcedLiquidations, 1);
-  assert.equal(
-    h.fee,
-    Math.min(h.equity, fee(Math.round(h.quantity * n.prices.bitcoin))),
-  );
-  assert.equal(h.proceeds, h.equity - h.fee);
+  assert.equal(h.fee, 0);
+  assert.equal(h.proceeds, h.equity);
   assert.ok(h.proceeds >= 0);
   assert.equal(n.positions.length, 0);
   assert.equal(report(n).liabilities, 0);
 });
 
-test("legacy forced closures retain the prior equity-based fee", () => {
+test("legacy positions also liquidate without an extra fee", () => {
   const g = opened(),
     p = g.positions[0],
     preview = structuredClone(g);
@@ -167,5 +163,24 @@ test("legacy forced closures retain the prior equity-based fee", () => {
   const n = advance(g, 1),
     h = n.positionHistory[0];
   assert.ok(h.equity > 0);
-  assert.equal(h.fee, Math.min(h.equity, fee(h.equity)));
+  assert.equal(h.fee, 0);
+  assert.equal(h.proceeds, h.equity);
+});
+
+test("voluntary close uses available cash only when released equity cannot pay the fee", () => {
+  const g = ready(),
+    p = g.positions[0],
+    action = { type: "close-position", positionId: p.id };
+  g.prices.bitcoin = 50;
+  g.cash = 99;
+  const previousFees = g.actionLedger.fees;
+  assert.throws(() => act(g, action), /insufficient cash/i);
+  assert.equal(g.positions.length, 1);
+  assert.equal(g.actionLedger.fees, previousFees);
+  g.cash = 100;
+  const n = act(g, action);
+  assert.equal(n.cash, 0);
+  assert.equal(n.positionHistory.at(-1).fee, 100);
+  assert.equal(n.positionHistory.at(-1).proceeds, -100);
+  assert.equal(n.actionLedger.fees, previousFees + 100);
 });

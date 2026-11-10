@@ -1,3 +1,5 @@
+import { TRADE_FEE_RATE } from "../../public/order-math.js";
+
 // All money is integer sen. These are educational balancing settings, not market forecasts.
 export const MODES = {
   "full-life": [22, 80],
@@ -48,7 +50,7 @@ export const DIFFICULTIES = {
 export const livingCost = (age) =>
   age < 45 ? 200000 : age < 60 ? 300000 : 250000;
 export const SETTINGS = {
-  tradeFee: 0.002,
+  tradeFee: TRADE_FEE_RATE,
   propertySaleFee: 0.02,
   businessSaleFee: 0.03,
   savingsRate: 0.03,

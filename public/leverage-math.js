@@ -1,4 +1,4 @@
-import { orderValue } from "./order-math.js";
+import { orderValue, tradeFee, TRADE_FEE_RATE } from "./order-math.js";
 export function positionMetrics(asset, p, price, ratio = 0.15) {
   const pnl =
     orderValue(asset, p.quantity, price - p.entryPrice) +
@@ -43,7 +43,7 @@ export function closeQuote(
   p,
   price,
   quantity = p.quantity,
-  feeRate = 0.002,
+  feeRate = TRADE_FEE_RATE,
 ) {
   const scale = asset.category === "crypto" ? 100 : 1,
     total = Math.round(p.quantity * scale),
@@ -82,7 +82,7 @@ export function closeQuote(
       }
     : null;
   const exposure = orderValue(asset, units / scale, price),
-    fee = Math.min(equity, Math.max(1, Math.round(exposure * feeRate)));
+    fee = tradeFee(exposure, feeRate);
   return {
     quantity: units / scale,
     margin,

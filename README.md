@@ -53,7 +53,7 @@ Age-45 salary compounds the age-22 salary for 23 years. Retirement salary is zer
 
 ## Explicit assumptions 教学参数与限制
 
-Parameters missing from the proposal are centralized in `server/core/config.js` and documented in [core notes](docs/CORE-NOTES.md): trade fee 0.2%; property/business sale fees 2%/3%; savings/retirement rates 3%/4%; personal loans 7.5% (12/24/36/60 months, maximum RM200,000 outstanding); new mortgages 20% down / 4.5% / 240 months; extension fee RM50. Asset returns, inflation, tenant chance and business prices/results are simulated balancing settings. Stock names are fictional choices; the proposal fixes categories/counts, not those names.
+Parameters missing from the proposal are centralized in `server/core/config.js` and documented in [core notes](docs/CORE-NOTES.md): trade fee 0.25% of the traded value with a minimum of RM1.00; forced liquidation adds no fee; property/business sale fees 2%/3%; savings/retirement rates 3%/4%; personal loans 7.5% (12/24/36/60 months, maximum RM200,000 outstanding); new mortgages 20% down / 4.5% / 240 months; extension fee RM50. Asset returns, inflation, tenant chance and business prices/results are simulated balancing settings. Stock names are fictional choices; the proposal fixes categories/counts, not those names.
 
 The benchmark automatically earns savings interest on positive cash and keeps its opening properties occupied. Free changes the private scenario; it is not a rules editor. There is no real market feed, real-money trading, external news or AI news generation. Leverage is monthly, not intraday. No weekly turns, messaging or player trading are included.
 

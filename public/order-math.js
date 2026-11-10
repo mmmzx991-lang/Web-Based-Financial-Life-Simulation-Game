@@ -1,3 +1,10 @@
+export const TRADE_FEE_RATE = 0.0025;
+const MINIMUM_TRADE_FEE = 100;
+
+export function tradeFee(value, rate = TRADE_FEE_RATE) {
+  return Math.max(MINIMUM_TRADE_FEE, Math.round(value * rate));
+}
+
 // Match the settlement engine's integer-sen rounding for fractional quantities.
 export function orderValue(asset, quantity, price) {
   const scale = asset?.category === "crypto" ? 100 : 1;
@@ -8,14 +15,14 @@ export function maximumQuantity(
   price,
   cash,
   leverage = 1,
-  feeRate = 0.002,
+  feeRate = TRADE_FEE_RATE,
   maximumAmount = 1e12,
 ) {
   if (
     !Number.isFinite(price) ||
     price <= 0 ||
     !Number.isFinite(cash) ||
-    cash < 2
+    cash <= MINIMUM_TRADE_FEE
   )
     return 0;
   const scale = asset.category === "crypto" ? 100 : 1;
@@ -26,7 +33,7 @@ export function maximumQuantity(
       value = orderValue(asset, mid / scale, price),
       cost =
         Math.max(1, Math.round(value / leverage)) +
-        Math.max(1, Math.round(value * feeRate));
+        tradeFee(value, feeRate);
     if (value <= maximumAmount && cost <= cash) lo = mid;
     else hi = mid - 1;
   }
