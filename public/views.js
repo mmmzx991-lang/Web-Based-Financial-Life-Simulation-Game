@@ -412,7 +412,7 @@ export function reports(state) {
     )
     .join(
       "",
-    )}</div><p class="small muted">${t("scoreHint")}</p><div class="two-columns"><section class="panel">${line(t("totalIncome"), money(s.totalIncome))}${line(t("totalExpenses"), money(s.totalExpenses))}${line(t("priceIndex"), number(s.priceIndex))}${line(t("milestone"), s.milestone ? t("reached") : t("notReached"))}</section><section class="panel">${line(t("drawdown"), percent(s.drawdown))}${line(t("liquidations"), number(s.forcedLiquidations))}${line(t("unpaidMonths"), number(s.unpaidMonths))}<p class="small muted">${t("pendingSaleReport")}</p></section></div><section class="panel"><h2>${t("monthlyHistory")}</h2>${
+    )}</div><p class="small muted">${t("scoreHint")}</p><div class="two-columns"><section class="panel">${line(t("totalIncome"), money(s.totalIncome))}${line(t("totalExpenses"), money(s.totalExpenses))}${line(t("totalRecordedFees"), money(s.totalRecordedFees ?? 0))}${line(t("priceIndex"), number(s.priceIndex))}${line(t("milestone"), s.milestone ? t("reached") : t("notReached"))}</section><section class="panel">${line(t("drawdown"), percent(s.drawdown))}${line(t("liquidations"), number(s.forcedLiquidations))}${line(t("unpaidMonths"), number(s.unpaidMonths))}<p class="small muted">${t("pendingSaleReport")}</p></section></div><section class="panel"><h2>${t("monthlyHistory")}</h2>${
     history.length
       ? rowsTable(
           [
@@ -420,12 +420,13 @@ export function reports(state) {
             t("age"),
             t("income"),
             t("expenses"),
+            t("recordedFees"),
             t("netWorth"),
             t("realWealth"),
           ],
           history.map(
             (r) =>
-              `<tr><td>${r.elapsedMonths}</td><td>${Math.floor(r.ageMonths / 12)}</td><td>${money(r.income)}</td><td>${money(r.expenses)}</td><td>${money(r.netWorth)}</td><td>${money(r.realNetWorth)}</td></tr>`,
+              `<tr><td>${r.elapsedMonths}</td><td>${Math.floor(r.ageMonths / 12)}</td><td>${money(r.income)}</td><td>${money(r.expenses)}</td><td>${money(r.fees ?? 0)}</td><td>${money(r.netWorth)}</td><td>${money(r.realNetWorth)}</td></tr>`,
           ),
         )
       : empty(t("none"))

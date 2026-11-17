@@ -452,6 +452,8 @@ const words = {
   monthlyHistory: ["Monthly records", "月度记录"],
   priceIndex: ["Price index", "物价指数"],
   totalIncome: ["Total recorded income", "累计记录收入"],
+  totalRecordedFees: ["Recorded fees included in expenses", "累计费用（已计入支出）"],
+  recordedFees: ["Fees included in expenses", "费用（已计入支出）"],
   totalExpenses: ["Total recorded expenses", "累计记录支出"],
   drawdown: ["Maximum drawdown", "最大回撤"],
   liquidations: ["Forced liquidations", "强制平仓次数"],

@@ -205,6 +205,7 @@ export function report(game) {
     priceIndex: game.priceIndex,
     totalIncome: game.history.reduce((s, h) => s + h.income, 0),
     totalExpenses: game.history.reduce((s, h) => s + h.expenses, 0),
+    totalRecordedFees: game.history.reduce((s, h) => s + (h.fees ?? 0), 0),
     monthsPlayed: game.elapsedMonths,
     benchmark,
     realBenchmark,
