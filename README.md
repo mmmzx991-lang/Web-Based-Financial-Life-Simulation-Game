@@ -1,8 +1,8 @@
 # Investment Game 投资人生
 
-A playable bilingual financial life simulation for CAT404, implemented from the supplied project proposal. Switch **English / 中文** at any time. This is an educational local MVP, with configurable game balance parameters and an original vector interpretation of the reference UI.
+A bilingual financial life simulation. Make monthly decisions about income, spending, investments, property and debt, then review how your choices affect your finances. Switch **English / 中文** at any time.
 
-基于项目 proposal 的中英双语财务人生模拟游戏。可随时切换语言，桌面和手机使用同一套规则。本版本是可运行的本地 MVP，尚未完成真实用户验收或公网部署。
+中英双语财务人生模拟游戏。每月管理收入、支出、投资、房产和债务，并在报告中查看这些决定的长期影响。可随时切换语言。
 
 ## Run 运行
 
@@ -21,7 +21,7 @@ Open **http://127.0.0.1:3000**. Runtime has no third-party dependencies; `npm in
 ## Playable features 已实现功能
 
 - **Four life modes**: Full Life 22–80 / 696 months; Early Career 22–45 / 276; Wealth Building 45–60 / 180; Retirement 60–80 / 240.
-- **Four exact proposal openings**: Easy / Normal / Hard / Expert starting cash, salary, properties and Expert retirement mortgage. No opening financial holdings. Full Life gets no free asset reset at 45 or 60.
+- **Four difficulty presets**: Easy / Normal / Hard / Expert starting cash, salary, properties and Expert retirement mortgage. No opening financial holdings. Full Life gets no free asset reset at 45 or 60.
 - **Monthly settlement**: advance 1 or 3 months through the same procedure, pause for required events or unpaid bills, resume only remaining months. Salary increases 2.5% on working birthdays and stops at 60. Fixed basic living costs: RM2,000 / RM3,000 / RM2,500 at ages 45 and 60.
 - **15 assets**: six fictional stocks, gold, Bitcoin, Ethereum, crude oil, natural gas, silver, copper, wheat and corn. Crypto orders start at 0.01 coin in steps of 0.01; other assets use whole units; one monthly price; one fee per trade; current-month holdings are locked. Long-only leverage capped at 2×, or 3× for crypto, with equity-only accounting and monthly forced liquidation. Entry previews separate margin/fees/total cash and show an estimated liquidation price. Positions show current P&L, ROI and risk; close any valid quantity with a proceeds preview and recent closure history.
 - **Economy and news**: variable-duration expansion, boom, recession and recovery; persistent inflation/rates/credit/demand, correlated asset shocks, volatility clustering, fundamental valuations and multi-month news impulses. Standard public prices/news depend only on mode, difficulty and scenario month. Free uses a separate scenario and keeps its scores private.
@@ -53,7 +53,7 @@ Age-45 salary compounds the age-22 salary for 23 years. Retirement salary is zer
 
 ## Explicit assumptions 教学参数与限制
 
-Parameters missing from the proposal are centralized in `server/core/config.js` and documented in [core notes](docs/CORE-NOTES.md): trade fee 0.25% of the traded value with a minimum of RM1.00; forced liquidation adds no fee; property/business sale fees 2%/3%; savings/retirement rates 3%/4%; personal loans 7.5% (12/24/36/60 months, maximum RM200,000 outstanding); new mortgages 20% down / 4.5% / 240 months; extension fee RM50. Asset returns, inflation, tenant chance and business prices/results are simulated balancing settings. Stock names are fictional choices; the proposal fixes categories/counts, not those names.
+Game settings are centralized in `server/core/config.js` and documented in [core notes](docs/CORE-NOTES.md): trade fee 0.25% of the traded value with a minimum of RM1.00; forced liquidation adds no fee; property/business sale fees 2%/3%; savings/retirement rates 3%/4%; personal loans 7.5% (12/24/36/60 months, maximum RM200,000 outstanding); new mortgages 20% down / 4.5% / 240 months; extension fee RM50. Asset returns, inflation, tenant chance and business prices/results are simulated balancing settings. Stock names are fictional.
 
 The benchmark automatically earns savings interest on positive cash and keeps its opening properties occupied. Free changes the private scenario; it is not a rules editor. There is no real market feed, real-money trading, external news or AI news generation. Leverage is monthly, not intraday. No weekly turns, messaging or player trading are included.
 
@@ -89,10 +89,8 @@ server/store.js   atomic file repository for accounts, games, sessions and reque
 server/app.js     authenticated HTTP API and safe static serving
 tests/            core, account, API and bilingual view regression checks
 scripts/          syntax, real-browser and 20-player concurrency checks
-docs/             API, proposal mapping, implementation decisions and limitations
+docs/             API, game rules, implementation notes and verification
 data/             generated local private data, ignored by Git
 ```
 
-See [API](docs/API.md), [proposal mapping](docs/PROPOSAL-MAPPING.md), [core notes](docs/CORE-NOTES.md) and [backend notes](docs/BACKEND-NOTES.md).
-
-The [software requirements document](docs/SRD.md) maps game features to use cases and acceptance checks.
+See [API](docs/API.md), [core notes](docs/CORE-NOTES.md) and [backend notes](docs/BACKEND-NOTES.md).
