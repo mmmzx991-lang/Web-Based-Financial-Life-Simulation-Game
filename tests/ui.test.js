@@ -4,7 +4,7 @@ import * as config from "../server/core/config.js";
 import { advance, createGame, report, trade } from "../server/core/simulation.js";
 globalThis.localStorage = { getItem: () => null, setItem: () => {} };
 globalThis.document = { documentElement: { lang: "en" } };
-const { setLanguage, t } = await import("../public/i18n.js");
+const { money, setLanguage, t } = await import("../public/i18n.js");
 const { pages, tradeDialog, pausedBanner, shell } = await import(
   "../public/views.js"
 );
@@ -166,4 +166,24 @@ test("recorded report and CSV fees reflect completed months and exclude pending 
   assert.equal(summary.totalRecordedFees, 350);
   assert.match(exportReport(settled, summary), /"Recorded fees included in expenses \(RM\)","3\.50"/);
   assert.match(pages.report({ session: { game: settled, summary } }), /Recorded fees included in expenses/);
+});
+
+test("report and CSV summary show live cash after a trade before month close", () => {
+  const opening = createGame({ difficulty: "easy" });
+  const game = trade(opening, {
+    assetId: "meridian-tech",
+    side: "buy",
+    quantity: 10,
+  });
+  const summary = report(game);
+  assert.equal(opening.cash - summary.cash, 100250);
+  assert.equal(game.history.at(-1).cash, opening.cash);
+  for (const language of ["en", "zh"]) {
+    setLanguage(language);
+    const html = pages.report({ session: { game, summary } });
+    assert.ok(html.includes(`<span>${t("cash")}</span><strong>${money(summary.cash)}</strong>`));
+    const csv = exportReport(game, summary);
+    assert.ok(csv.includes(`"${t("cash")} (RM)","${(summary.cash / 100).toFixed(2)}"`));
+    assert.ok(csv.includes(`"${t("assetsTotal")} (RM)","${(summary.assets / 100).toFixed(2)}"`));
+  }
 });
