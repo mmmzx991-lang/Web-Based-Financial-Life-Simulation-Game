@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import * as config from "../server/core/config.js";
-import { createGame, report } from "../server/core/simulation.js";
+import { advance, createGame, report, trade } from "../server/core/simulation.js";
 globalThis.localStorage = { getItem: () => null, setItem: () => {} };
 globalThis.document = { documentElement: { lang: "en" } };
 const { setLanguage, t } = await import("../public/i18n.js");
@@ -148,4 +148,22 @@ test("session bar offers advance only for active runs and routes paused and comp
     if (status === "active") assert.match(bar, /data-action="advance"/);
     else assert.doesNotMatch(bar, /data-action="advance"/);
   }
+});
+
+test("recorded report and CSV fees reflect completed months and exclude pending trades", () => {
+  setLanguage("en");
+  const buy = (game, quantity) =>
+    trade(game, { assetId: "meridian-tech", side: "buy", quantity });
+  let game = buy(createGame({ difficulty: "easy" }), 10);
+  assert.equal(report(game).totalRecordedFees, 0);
+  game = advance(game, 1);
+  assert.equal(game.history.at(-1).fees, 250);
+  assert.equal(report(game).totalRecordedFees, 250);
+  const next = buy(game, 1);
+  assert.equal(report(next).totalRecordedFees, 250);
+  const settled = advance(next, 1);
+  const summary = report(settled);
+  assert.equal(summary.totalRecordedFees, 350);
+  assert.match(exportReport(settled, summary), /"Recorded fees included in expenses \(RM\)","3\.50"/);
+  assert.match(pages.report({ session: { game: settled, summary } }), /Recorded fees included in expenses/);
 });

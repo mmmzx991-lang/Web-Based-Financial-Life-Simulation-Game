@@ -94,3 +94,5 @@ data/             generated local private data, ignored by Git
 ```
 
 See [API](docs/API.md), [proposal mapping](docs/PROPOSAL-MAPPING.md), [core notes](docs/CORE-NOTES.md) and [backend notes](docs/BACKEND-NOTES.md).
+
+The [software requirements document](docs/SRD.md) maps game features to use cases and acceptance checks.
