@@ -1,11 +1,12 @@
 import { createServer } from "node:http";
 import { randomUUID } from "node:crypto";
-import { readFileSync, realpathSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { resolve, relative, extname, isAbsolute } from "node:path";
 import * as core from "./core/simulation.js";
 import * as config from "./core/config.js";
 import { createStore } from "./store.js";
+import { handleGameRequest } from "./game-routes.js";
+import { readJsonObject } from "./request-body.js";
+import { serveStatic } from "./static-files.js";
 import {
   httpError,
   normalizeEmail,
@@ -21,109 +22,6 @@ import {
   createAuthThrottle,
 } from "./auth.js";
 
-const publicDir = fileURLToPath(new URL("../public/", import.meta.url));
-const mime = {
-  ".html": "text/html; charset=utf-8",
-  ".js": "text/javascript; charset=utf-8",
-  ".css": "text/css; charset=utf-8",
-  ".svg": "image/svg+xml",
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".ico": "image/x-icon",
-};
-const uuid =
-  /^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
-async function body(req) {
-  const chunks = [];
-  let length = 0;
-  if (Number(req.headers["content-length"]) > 16384)
-    throw httpError(413, "Request too large", "BODY_TOO_LARGE");
-  for await (const chunk of req) {
-    length += chunk.length;
-    if (length > 16384)
-      throw httpError(413, "Request too large", "BODY_TOO_LARGE");
-    chunks.push(chunk);
-  }
-  let value;
-  try {
-    value = JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
-  } catch {
-    throw httpError(400, "Invalid JSON body", "INVALID_JSON");
-  }
-  if (!value || Array.isArray(value) || typeof value !== "object")
-    throw httpError(400, "Expected JSON object", "INVALID_JSON");
-  return value;
-}
-function owner(store, id, userId) {
-  const record = store.game(id);
-  if (!record || record.ownerId !== userId)
-    throw httpError(404, "Game not found", "GAME_NOT_FOUND");
-  return record;
-}
-function result(record) {
-  return {
-    id: record.id,
-    game: record.game,
-    summary: core.report(record.game),
-  };
-}
-function compactResponse(response) {
-  const { history, ...game } = response.game;
-  const { history: summaryHistory, ...summary } = response.summary;
-  return {
-    id: response.id,
-    game,
-    summary,
-    historyLength: history.length,
-    summaryHasHistory: Array.isArray(summaryHistory),
-  };
-}
-function replayResponse(replay, currentGame) {
-  const history = currentGame.history.slice(0, replay.historyLength);
-  return {
-    id: replay.id,
-    game: { ...replay.game, history },
-    summary: {
-      ...replay.summary,
-      ...(replay.summaryHasHistory ? { history } : {}),
-    },
-  };
-}
-function serveStatic(path, res) {
-  let decoded;
-  try {
-    decoded = decodeURIComponent(path);
-  } catch {
-    return false;
-  }
-  if (
-    decoded.includes("\\") ||
-    decoded.includes("\0") ||
-    decoded.includes(":") ||
-    decoded.split("/").includes("..")
-  )
-    return false;
-  const file = resolve(
-    publicDir,
-    decoded === "/" ? "index.html" : decoded.slice(1),
-  );
-  const type = mime[extname(file).toLowerCase()];
-  if (!type) return false;
-  try {
-    const actual = realpathSync(file),
-      rel = relative(realpathSync(publicDir), actual);
-    if (rel.startsWith("..") || isAbsolute(rel) || !statSync(actual).isFile())
-      return false;
-    res.writeHead(200, { "Content-Type": type, "Cache-Control": "no-cache" });
-    res.end(readFileSync(actual));
-    return true;
-  } catch (error) {
-    if (["ENOENT", "ENOTDIR", "EINVAL", "EACCES"].includes(error.code))
-      return false;
-    throw error;
-  }
-}
 export function createApp({
   dataDir = fileURLToPath(new URL("../data/", import.meta.url)),
 } = {}) {
@@ -186,7 +84,7 @@ export function createApp({
         const endpoint = authRoute[1];
         // Apply the per-address guard before reading and hashing user input.
         if (endpoint !== "logout") throttle(req, endpoint);
-        const input = await body(req);
+        const input = await readJsonObject(req);
         const previous = currentAuth();
         if (endpoint === "logout") {
           if (previous)
@@ -324,100 +222,7 @@ export function createApp({
           .slice(0, 100);
         return send(200, { entries });
       }
-      if (path === "/api/games" && req.method === "GET") {
-        const user = requireUser();
-        const games = store
-          .games()
-          .filter((record) => record.ownerId === user.id)
-          .map((record) => ({
-            id: record.id,
-            mode: record.game.mode,
-            difficulty: record.game.difficulty,
-            ruleset: record.game.ruleset,
-            status: record.game.status,
-            ageMonths: record.game.ageMonths,
-            updatedAt: record.updatedAt,
-          }))
-          .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-        return send(200, { games });
-      }
-      if (path === "/api/games" && req.method === "POST") {
-        requireUser();
-        const input = await body(req),
-          user = requireUser();
-        const options = {};
-        for (const field of ["mode", "difficulty", "ruleset"])
-          if (Object.hasOwn(input, field)) options[field] = input[field];
-        const game = core.createGame(options),
-          id = randomUUID(),
-          now = new Date().toISOString();
-        const record = {
-          id,
-          ownerId: user.id,
-          createdAt: now,
-          updatedAt: now,
-          game,
-          actions: {},
-        };
-        const response = result(record);
-        store.commit((next) => {
-          next.games[id] = record;
-        });
-        return send(201, response);
-      }
-      const match = path.match(
-        /^\/api\/games\/([a-f0-9-]{36})(?:\/(action|save|report))?$/i,
-      );
-      if (!match) return send(404, { error: "Not found", code: "NOT_FOUND" });
-      const [, id, route] = match;
-      let user = requireUser(),
-        record = owner(store, id, user.id);
-      if (req.method === "GET" && !route) return send(200, result(record));
-      if (req.method === "GET" && route === "report")
-        return send(200, core.report(record.game));
-      if (req.method !== "POST" || !["action", "save"].includes(route))
-        return send(405, {
-          error: "Method not allowed",
-          code: "METHOD_NOT_ALLOWED",
-        });
-      const input = await body(req);
-      // Read identity and game only after the complete body, then settle without awaits.
-      user = requireUser();
-      record = owner(store, id, user.id);
-      if (route === "save")
-        return send(200, { saved: true, ...result(record) });
-      if (typeof input.requestId !== "string" || !uuid.test(input.requestId))
-        throw httpError(
-          400,
-          "A UUID requestId is required",
-          "INVALID_REQUEST_ID",
-        );
-      if (
-        !input.action ||
-        Array.isArray(input.action) ||
-        typeof input.action !== "object" ||
-        typeof input.action.type !== "string"
-      )
-        throw httpError(
-          400,
-          "A game action object is required",
-          "INVALID_ACTION",
-        );
-      const requestId = input.requestId.toLowerCase();
-      if (Object.hasOwn(record.actions, requestId))
-        return send(
-          200,
-          replayResponse(record.actions[requestId], record.game),
-        );
-      const nextGame = core.act(record.game, input.action);
-      const response = { id, game: nextGame, summary: core.report(nextGame) };
-      store.commit((next) => {
-        const nextRecord = next.games[id];
-        nextRecord.game = nextGame;
-        nextRecord.updatedAt = new Date().toISOString();
-        nextRecord.actions[requestId] = compactResponse(response);
-      });
-      return send(200, response);
+      return await handleGameRequest(req, path, { store, requireUser, send });
     } catch (error) {
       const internal =
         !error.status &&
