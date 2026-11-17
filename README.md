@@ -18,6 +18,32 @@ Open **http://127.0.0.1:3000**. Runtime has no third-party dependencies; `npm in
 
 安装 Node.js 24 LTS 后运行以上命令，打开本地地址。可注册本地账户，也可游客试玩；游客注册后保留原有进度。游戏在每次成功操作及月度结算后自动保存。账户与存档保存在本机此项目的 `data/` 中，不会上传 GitHub。
 
+## Architecture 项目架构
+
+The browser runs plain JavaScript modules. One Node.js process serves the UI, handles the JSON API, and writes local saves. The server calculates the game state used by reports and the leaderboard.
+
+浏览器运行原生 JavaScript 模块。一个 Node.js 进程提供页面和 JSON API，并写入本地存档。报告与排行榜使用服务端计算的游戏状态。
+
+| Area 模块 | Entry points 入口 | Responsibility 职责 |
+| --- | --- | --- |
+| Browser UI 网页界面 | [`public/index.html`](public/index.html), [`app.js`](public/app.js), [`views.js`](public/views.js) | Load the page, handle player actions, and render returned state. 加载页面、处理玩家操作并渲染返回状态。 |
+| Interface and exports 界面与导出 | [`i18n.js`](public/i18n.js), [`charts.js`](public/charts.js), [`export-report.js`](public/export-report.js) | Translate labels, draw charts, and convert game records and report totals to CSV. 负责双语文案、图表和 CSV 导出。 |
+| HTTP API and accounts 接口与账户 | [`server/index.js`](server/index.js), [`app.js`](server/app.js), [`auth.js`](server/auth.js) | Start the server, serve assets, and check session and save ownership before accepting game actions. 启动服务、提供静态资源，处理操作前验证会话和存档归属。 |
+| Simulation 模拟引擎 | [`simulation.js`](server/core/simulation.js), [`monthly.js`](server/core/monthly.js), [`market.js`](server/core/market.js) | Dispatch actions, advance monthly settlement, and update simulated prices and news. 分派操作、推进月度结算，更新模拟行情和新闻。 |
+| Game settings and reports 参数与报告 | [`config.js`](server/core/config.js), [`finance.js`](server/core/finance.js) | Set modes, difficulty presets, and asset parameters. Calculate balances, month-end snapshots, and report summaries. 配置模式、难度和资产，计算余额、月末快照及报告汇总。 |
+| Shared calculations 共用计算 | [`order-math.js`](public/order-math.js), [`leverage-math.js`](public/leverage-math.js) | Share order fee and leverage calculations between browser previews and server execution. 在前端预览与服务端执行时复用手续费和杠杆计算。 |
+| Persistence 存档 | [`server/store.js`](server/store.js) | Save accounts, sessions, game state, and request records in local `data/v2-state.json` using atomic file replacement. 通过原子替换写入本地 JSON，保存账户、会话、游戏状态和请求记录。 |
+
+### Game action flow 游戏操作流程
+
+1. The browser sends an action and its request ID to `POST /api/games/:id/action`. 浏览器提交操作和请求 ID。
+2. The API checks session and game ownership, then dispatches the action to the simulation. A repeated request ID returns a recorded result without applying the action again. API 验证会话和存档归属，再交给模拟引擎处理。重复请求会返回已记录的结果，避免重复结算。
+3. After a successful action, the API saves the new game state and request record, then returns the state and report summary for the browser to render. 操作成功后，API 保存状态和请求记录，再返回更新后的状态与报告汇总。
+
+Regression tests are in [`tests/`](tests/). Browser and load checks are in [`scripts/`](scripts/). See the [API reference](docs/API.md), [game rules](docs/CORE-NOTES.md), and [account and save notes](docs/BACKEND-NOTES.md) for details.
+
+回归测试见 [`tests/`](tests/)，浏览器和并发验证脚本见 [`scripts/`](scripts/)。
+
 ## Playable features 已实现功能
 
 - **Four life modes**: Full Life 22–80 / 696 months; Early Career 22–45 / 276; Wealth Building 45–60 / 180; Retirement 60–80 / 240.
@@ -78,19 +104,3 @@ npm run test:browser
 On Windows, the browser check uses installed Microsoft Edge when available; otherwise it uses Playwright Chromium. Set `BROWSER_EXECUTABLE` for another compatible executable. Screenshots go to ignored `.browser-results/`.
 
 Tests cover age boundaries, exact openings, accounting, locks, leverage, rents, sales, loan amortization, bill recovery, duplicate requests, account isolation, restart, score formulas and all four Easy mode endpoints. The browser check uses temporary accounts, switches English/Chinese, checks mobile overflow, trades, saves, upgrades a guest and completes a real 276-month run into the leaderboard. `test:load` runs 20 independent accounts for 12 months each (140 HTTP requests) and reports measured local latency. These checks are also configured in GitHub Actions.
-
-## Structure 目录
-
-```text
-public/           bilingual responsive UI, original SVG world, charts and CSV export
-server/core/      configuration, prepared news, market, finance, monthly procedure, actions
-server/auth.js    password hashing, sessions, same-origin checks and auth throttles
-server/store.js   atomic file repository for accounts, games, sessions and request replay
-server/app.js     authenticated HTTP API and safe static serving
-tests/            core, account, API and bilingual view regression checks
-scripts/          syntax, real-browser and 20-player concurrency checks
-docs/             API, game rules, implementation notes and verification
-data/             generated local private data, ignored by Git
-```
-
-See [API](docs/API.md), [core notes](docs/CORE-NOTES.md) and [backend notes](docs/BACKEND-NOTES.md).
