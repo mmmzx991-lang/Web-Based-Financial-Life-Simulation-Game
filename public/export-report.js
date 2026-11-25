@@ -43,6 +43,9 @@ export function exportReport(game, summary) {
       t("realWealth") + " (RM)",
       t("benchmark") + " (RM)",
       t("priceIndex"),
+      t("protectionPremium") + " (RM)",
+      t("emergencyCost") + " (RM)",
+      t("protectionPayout") + " (RM)",
     ],
     ...game.history.map((r) => [
       r.elapsedMonths,
@@ -57,6 +60,9 @@ export function exportReport(game, summary) {
       rm(r.realNetWorth),
       rm(r.benchmark),
       r.priceIndex,
+      rm(r.protectionPremium),
+      rm(r.emergencyCost),
+      rm(r.protectionPayout),
     ]),
   ]);
 }

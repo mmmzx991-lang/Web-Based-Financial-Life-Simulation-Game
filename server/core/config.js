@@ -47,8 +47,7 @@ export const DIFFICULTIES = {
     mortgage60: 12000000,
   },
 };
-export const livingCost = (age) =>
-  age < 45 ? 200000 : age < 60 ? 300000 : 250000;
+export { livingCost } from "../../public/living-cost.js";
 export const SETTINGS = {
   tradeFee: TRADE_FEE_RATE,
   propertySaleFee: 0.02,

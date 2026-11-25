@@ -1,3 +1,4 @@
+import { emergencyCover } from "./protection.js";
 import {resultCard,label} from "./chapter-view.js";
 import {unlockMonth} from "./chapters.js";
 import { positionMetrics, closeQuote } from "./leverage-math.js";
@@ -111,7 +112,6 @@ function render() {
         el.textContent=label("Unlocks after month ","解锁所需月数：")+unlock;
       }
     }
-    if(game.elapsedMonths < 36) root.querySelectorAll('form[data-form="transfer"]').forEach(form=>form.hidden=true);
   }
   if (state.busy) root.setAttribute("aria-busy", "true");
   else root.removeAttribute("aria-busy");
@@ -387,6 +387,10 @@ function quote(a) {
   const g = state.session.game,
     c = state.config,
     settings = c.settings || {};
+  if (a.type === "enable-emergency-cover")
+    return label("Enable emergency insurance at", "启用应急保险，每月保费") + " " + money(emergencyCover.monthlyPremium);
+  if (a.type === "disable-emergency-cover")
+    return label("Cancel cover before the next monthly settlement?", "在下个月结算前取消保障？");
   if (a.type === "redeem-deposit") return label("Withdraw early and give up the interest?","提前支取将失去本期利息，确定吗？");
   if (a.type === "declare-bankruptcy") return t("confirmBankruptcy");
   if (a.type === "start-business") {

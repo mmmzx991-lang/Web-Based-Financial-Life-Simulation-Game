@@ -24,8 +24,19 @@ try {
   await page.locator(".life-layout").waitFor();
   const nav = (view) => page.locator(`.sidebar [data-view="${view}"]`).click();
   await nav("market");
-  await page.getByText("Fixed deposit desk", { exact: true }).waitFor();
+  await page
+    .getByText("Financial planning and protection", { exact: true })
+    .waitFor();
   assert.equal(await page.locator("[data-trade]").count(), 0);
+  await page.locator('[data-action="enable-emergency-cover"]').click();
+  await page.locator('[data-confirm="yes"]').click();
+  await page.locator('[data-action="disable-emergency-cover"]').waitFor();
+  await nav("bank");
+  await page.locator('[data-form="open-deposit"]').waitFor();
+  assert.equal(
+    await page.locator('[data-action="disable-emergency-cover"]').count(),
+    0,
+  );
   await nav("life");
   const id = await page.evaluate(() =>
     localStorage.getItem("investment-last-game"),

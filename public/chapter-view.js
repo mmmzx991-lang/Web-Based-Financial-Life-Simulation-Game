@@ -32,7 +32,7 @@ export function chapterPanel(g) {
     g.endAgeMonths - g.startAgeMonths,
   ][n - 1];
   const heading = [
-    label("Fixed deposits", "定期存款"),
+    label("Saving and protection", "储蓄与保障"),
     label("Stock investing", "股票投资"),
     label("Open market", "综合交易"),
   ][n - 1];

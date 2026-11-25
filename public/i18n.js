@@ -11,12 +11,16 @@ export const text = (value) =>
     ? value[language] || value.en || ""
     : String(value ?? "");
 const words = {
+  protectionPremium: ["Insurance premiums", "保险保费"],
+  emergencyCost: ["Emergency costs", "突发开支"],
+  protectionPayout: ["Insurance payouts", "保险理赔"],
   versusBenchmark: ["Ahead / behind benchmark", "领先／落后基准"],
   benchmarkHint: [
     "Compare your choices against the same starting life using conservative saving. Salary and total wealth are not trading profit.",
     "与相同初始条件下的保守储蓄方案比较。工资和总财富增长不等于交易盈利。",
   ],
   quickAccess: ["Your next move", "下一步行动"],
+  quickProtection: ["Plan emergency savings and insurance", "规划应急储备与保险"],
   quickMarket: ["Discover 15 investment assets", "查看15种投资资产"],
   quickPortfolio: [
     "Manage holdings and leveraged positions",

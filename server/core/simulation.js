@@ -1,3 +1,4 @@
+import { setEmergencyCover } from "./protection.js";
 import { openDeposit, redeemDeposit, recordTradingProfit } from "./chapters.js";
 import {unlockMonth} from "../../public/chapters.js";
 import { closeQuote } from "../../public/leverage-math.js";
@@ -285,13 +286,29 @@ export function act(state, action = {}) {
   const game = clone(state);
   if (game.journey) demand(game.elapsedMonths >= unlockMonth(action.type), "Chapter locked");
   switch (action.type) {
+    case "enable-emergency-cover":
+    case "disable-emergency-cover":
+      setEmergencyCover(game, action.type === "enable-emergency-cover");
+      return game;
     case "open-deposit": openDeposit(game, action); return game;
     case "redeem-deposit": redeemDeposit(game, action.depositId); return game;
-    case "continue-months":
-      demand(game.journey?.carry > 0 && ["active", "paused"].includes(game.status) && !game.remainingAdvance, "No pending advance");
+    case "continue-months": {
+      // Older saves could keep one extra resume month when a bill extension
+      // completed a stage. The saved batch already includes that month.
+      const legacyExtensionResume =
+        game.remainingAdvance === 1 &&
+        game.unpaidBill?.extended &&
+        !game.pendingSettlement;
+      demand(
+        game.journey?.carry > 0 &&
+          ["active", "paused"].includes(game.status) &&
+          (!game.remainingAdvance || legacyExtensionResume),
+        "No pending advance",
+      );
       game.remainingAdvance = game.journey.carry;
       game.journey.carry = 0;
       return runRemaining(game);
+    }
     case "resume": {
       demand(!game.pendingEvent, "Acknowledge event first");
       if (game.pendingSettlement) {
@@ -313,7 +330,9 @@ export function act(state, action = {}) {
       game.remainingAdvance = Math.max(
         game.remainingAdvance,
         game.unpaidBill ? 1 : 0,
+        game.journey?.carry ?? 0,
       );
+      if (game.journey) game.journey.carry = 0;
       game.status = "active";
       return runRemaining(game);
     }

@@ -1,3 +1,4 @@
+import { emergencyReserve } from "../../public/protection.js";
 import {
   milestones,
   profitMedals,
@@ -55,7 +56,7 @@ export function finishChapter(game) {
     40,
     1 - (game.stats.unpaidMonths - journey.openingUnpaid) / count,
   );
-  const reserve = points(35, (game.cash + game.savings) / (3 * cost));
+  const reserve = points(35, (game.cash + game.savings) / emergencyReserve(cost));
   // Working chapters compare real growth against three months of living costs.
   // Retirement chapters reward coverage of living costs by non-salary income.
   const goal =

@@ -1,3 +1,5 @@
+import { livingCost } from "./living-cost.js";
+import { emergencyCover, emergencyReserve } from "./protection.js";
 import {stage} from "./chapters.js";
 import {chapterPanel, depositPanel, medals, label} from "./chapter-view.js";
 import { positionMetrics } from "./leverage-math.js";
@@ -161,7 +163,8 @@ export function pausedBanner(game) {
   if (game.status !== "paused") return "";
   const bill = game.unpaidBill,
     event = game.pendingEvent;
-  return `<section class="pause-banner ${bill ? "danger" : ""}" role="status"><div>${icon("warning")}<h2>${bill ? t("billTitle") : t("pauseTitle")}</h2></div>${event ? `<h3>${E(text(event.title))}</h3><p>${E(text(event.body))}</p>` : ""}${bill ? `${line(t("billAmount"), money(bill.amount))}${line(t("cash"), money(game.cash))}${line(t("shortfall"), money(Math.max(0, bill.amount - game.cash)))}<p>${t("billHint")}</p>` : ""}<p>${t("remaining")}: ${game.remainingAdvance || 0}</p><div class="action-row">${event ? actionButton(t("resolve"), "acknowledge-event") : ""}${bill ? actionButton(t("payBill"), "pay-bill") + (!bill.extended ? actionButton(t("extendBill"), "extend-bill") : pill(t("extensionUsed"))) : ""}${(!bill || (bill.extended && !game.pendingSettlement)) && !event ? actionButton(t("resume"), "resume", {}, "primary") : ""}${bill && game.pendingSettlement ? actionButton(t("declareBankruptcy"), "declare-bankruptcy", {}, "danger-button") : ""}</div></section>`;
+  const ledger = game.pendingSettlement?.ledger;
+  return `<section class="pause-banner ${bill ? "danger" : ""}" role="status"><div>${icon("warning")}<h2>${bill ? t("billTitle") : t("pauseTitle")}</h2></div>${event ? `<h3>${E(text(event.title))}</h3><p>${E(text(event.body))}</p>` : ""}${bill ? `${line(t("billAmount"), money(bill.amount))}${line(t("cash"), money(game.cash))}${line(t("shortfall"), money(Math.max(0, bill.amount - game.cash)))}${protectionBreakdown(ledger)}<p>${t("billHint")}</p>` : ""}<p>${t("remaining")}: ${game.remainingAdvance || 0}</p><div class="action-row">${event ? actionButton(t("resolve"), "acknowledge-event") : ""}${bill ? actionButton(t("payBill"), "pay-bill") + (!bill.extended ? actionButton(t("extendBill"), "extend-bill") : pill(t("extensionUsed"))) : ""}${(!bill || (bill.extended && !game.pendingSettlement)) && !event ? actionButton(t("resume"), "resume", {}, "primary") : ""}${bill && game.pendingSettlement ? actionButton(t("declareBankruptcy"), "declare-bankruptcy", {}, "danger-button") : ""}</div></section>`;
 }
 function advanceButtons(game) {
   if (!canAct(game))
@@ -180,8 +183,10 @@ export function sessionBar(state) {
   return `<section class="session-bar ${g.status === "paused" ? "has-issue" : ""}" aria-label="${t("thisMonth")}"><div class="session-time"><span class="eyebrow">${modeLabel(g.mode)}</span><strong>${headingState(g, s)}</strong><progress value="${g.elapsedMonths}" max="${total}" aria-label="${t("lifeProgress")}"></progress></div><div class="session-cash"><span>${t("cash")}</span><strong>${money(g.cash)}</strong></div><div class="session-actions">${advanceButtons(g)}<button class="button secondary" data-save-exit>${label("Save and exit","保存并退出")}</button></div></section>`;
 }
 function shortcuts(state) {
+  const { game } = state.session;
+  const startingStage = game.journey && stage(game) === 1;
   return `<section class="quick-access" aria-label="${t("quickAccess")}">${[
-    ["market", "quickMarket"],
+    ["market", startingStage ? "quickProtection" : "quickMarket"],
     ["assets", "quickPortfolio"],
     ["bank", "quickBank"],
     ["report", "quickReport"],
@@ -207,10 +212,50 @@ export function life(state) {
       "",
     )}</div><div class="life-timeline">${[22, 45, 60, 80].map((a) => `<span class="${s.age >= a ? "passed" : ""}"><b>${a}</b>${a === 22 ? t("start") : a === 60 ? t("retired") : a === 80 ? t("report") : t("wealthBuilding")}</span>`).join("")}</div></section><aside><section class="panel move-card"><p class="eyebrow">${t("age")} ${s.age} · ${t("month")} ${g.elapsedMonths + 1}</p><h2>${t("introAdvance")}</h2>${advanceButtons(g)}<p class="small muted">${t("advanceHint")}</p>${line(t("assetsTotal"), money(s.assets))}${line(t("portfolioValue"), money(s.portfolioValue))}${line(t("propertyValue"), money(s.propertyValue))}${line(t("businessValue"), money(s.businessValue))}</section><section class="panel news-preview"><div class="panel-heading"><h2>${t("news")}</h2><button class="text-button" data-view="news">↗</button></div>${g.news?.length ? `<h3>${E(text(g.news[0].title))}</h3><p>${E(text(g.news[0].body))}</p>` : `<p>${t("noNews")}</p>`}</section></aside></div><section class="panel"><div class="panel-heading"><h2>${t("wealthJourney")}</h2><div class="chart-legend"><span>${t("netWorth")}</span><span>${t("benchmark")}</span></div></div>${wealthChart(g.history, { wealth: t("netWorth"), benchmark: t("benchmark"), age: t("age") })}</section>`;
 }
+const protectionFields = ["protectionPremium", "emergencyCost", "protectionPayout"];
+function protectionBreakdown(ledger) {
+  return protectionFields
+    .filter(key => ledger?.[key] > 0)
+    .map(key => line(t(key), money(ledger[key])))
+    .join("");
+}
+
+function protectionDesk(g) {
+  const age = Math.floor(g.ageMonths / 12);
+  const target = emergencyReserve(livingCost(age));
+  const liquid = g.cash + g.savings;
+  const covered = g.journey.emergencyCover === true;
+  const recent = g.history.findLast(month => month.emergencyCost > 0);
+  const { monthlyPremium, deductible, reimbursementRate, payoutLimit } = emergencyCover;
+  return `${title(t("tagline"), label("Financial planning and protection", "理财与保障"), label("Build an emergency reserve and decide if insurance fits your budget.", "规划应急储备，再决定每月是否购买保险。"))}
+    ${pausedBanner(g)}
+    <div class="two-columns">
+      <section class="panel">
+        <h2>${label("Emergency reserve", "应急储备")}</h2>
+        ${line(label("Available cash and savings", "可用现金与活期储蓄"), money(liquid))}
+        ${line(label("Three months of basic living costs", "三个月基本生活费目标"), money(target))}
+        <progress aria-label="${label("Emergency reserve", "应急储备")}" value="${Math.max(0, Math.min(liquid, target))}" max="${target}"></progress>
+        <p>${liquid >= target ? label("Reserve target reached.", "已达到储备目标。") : label("Still needed", "距离目标还差") + " " + money(target - liquid)}</p>
+        ${button(label("Manage deposits in Bank", "到银行管理定存"), 'data-view="bank"', "secondary")}
+      </section>
+      <section class="panel">
+        <h2>${label("Emergency insurance", "应急保险")}</h2>
+        ${line(label("Status", "保障状态"), covered ? label("Active for next month", "下月结算生效") : label("Uninsured", "未投保"))}
+        ${line(label("Monthly premium", "每月保费"), money(monthlyPremium))}
+        ${line(label("Deductible per incident", "每次免赔额"), money(deductible))}
+        ${line(label("Reimbursement after deductible", "扣除免赔额后赔付比例"), percent(reimbursementRate))}
+        ${line(label("Maximum per incident", "每次赔付上限"), money(payoutLimit))}
+        <p>${label("Claims are applied automatically during monthly settlement. Cover ends after month 36.", "发生游戏内突发开支时自动理赔，保障在第 36 个月结算后结束。")}</p>
+        ${g.status === "active" ? actionButton(covered ? label("Cancel cover", "取消保障") : label("Get covered", "投保"), covered ? "disable-emergency-cover" : "enable-emergency-cover", {}, "primary") : ""}
+        ${recent ? `<p>${label("Latest emergency cost", "最近一次突发开支")} ${money(recent.emergencyCost)} · ${label("Payout", "理赔")} ${money(recent.protectionPayout)}</p>` : ""}
+      </section>
+    </div>`;
+}
+
 export function market(state) {
   const { game: g } = state.session;
   const desk = g.journey ? stage(g) : 3;
-  if (desk === 1) return title(t("tagline"),label("Fixed deposit desk","定存交易台"),label("Stock trading opens after month 36.","第 36 个月结算后开放股票交易。")) + depositPanel(g);
+  if (desk === 1) return protectionDesk(g);
   const filter = desk === 2 ? "stocks" : state.marketFilter || "all";
   const groups = [
     ["stocks", "stock", "stockDescription"],
@@ -369,21 +414,23 @@ export function businesses(state) {
 }
 export function bank(state) {
   const { game: g } = state.session;
+  const depositsOnly = g.journey && stage(g) === 1;
   return `${title(t("tagline"), t("bankTitle"), t("bankDescription"))}${depositPanel(g)}${pausedBanner(g)}<div class="metrics three">${card(t("cash"), money(g.cash), "", "highlight")}${card(t("savings"), money(g.savings))}${card(t("retirementBalance"), money(g.retirementBalance))}</div><div class="two-columns">${[
     ["savings", g.savings],
     ["retirement", g.retirementBalance],
   ]
+    .filter(([, balance]) => !depositsOnly || balance > 0)
     .map(
-      ([id, balance]) =>
+      ([id]) =>
         `<section class="panel"><h2>${t(id === "savings" ? "savings" : "retirementBalance")}</h2><form data-form="transfer" class="stack-form">${field(t("amount"), amount())}${field(
           t("review"),
           select(
             "type",
             [
-              [id + "-deposit", t("deposit")],
+              ...(!depositsOnly ? [[id + "-deposit", t("deposit")]] : []),
               [id + "-withdraw", t("withdraw")],
             ],
-            id + "-deposit",
+            id + (depositsOnly ? "-withdraw" : "-deposit"),
           ),
         )}${button(t("transfer"), 'type="submit"')}</form></section>`,
     )
@@ -424,7 +471,9 @@ export function reports(state) {
     )
     .join(
       "",
-    )}</div><p class="small muted">${t("scoreHint")}</p><div class="two-columns"><section class="panel">${line(t("totalIncome"), money(s.totalIncome))}${line(t("totalExpenses"), money(s.totalExpenses))}${line(t("totalRecordedFees"), money(s.totalRecordedFees ?? 0))}${line(t("priceIndex"), number(s.priceIndex))}${line(t("milestone"), s.milestone ? t("reached") : t("notReached"))}</section><section class="panel">${line(t("drawdown"), percent(s.drawdown))}${line(t("liquidations"), number(s.forcedLiquidations))}${line(t("unpaidMonths"), number(s.unpaidMonths))}<p class="small muted">${t("pendingSaleReport")}</p></section></div><section class="panel"><h2>${t("monthlyHistory")}</h2>${
+    )}</div><p class="small muted">${t("scoreHint")}</p><div class="two-columns"><section class="panel">${line(t("totalIncome"), money(s.totalIncome))}${line(t("totalExpenses"), money(s.totalExpenses))}${line(t("totalRecordedFees"), money(s.totalRecordedFees ?? 0))}${protectionBreakdown(Object.fromEntries(
+      protectionFields.map(key => [key, g.history.reduce((total, month) => total + (month[key] ?? 0), 0)]),
+    ))}${line(t("priceIndex"), number(s.priceIndex))}${line(t("milestone"), s.milestone ? t("reached") : t("notReached"))}</section><section class="panel">${line(t("drawdown"), percent(s.drawdown))}${line(t("liquidations"), number(s.forcedLiquidations))}${line(t("unpaidMonths"), number(s.unpaidMonths))}<p class="small muted">${t("pendingSaleReport")}</p></section></div><section class="panel"><h2>${t("monthlyHistory")}</h2>${
     history.length
       ? rowsTable(
           [

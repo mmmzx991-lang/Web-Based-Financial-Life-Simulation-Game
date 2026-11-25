@@ -20,9 +20,11 @@ Open **http://127.0.0.1:3000**. Runtime has no third-party dependencies; `npm in
 
 ## Life stages / 人生阶段
 
-All four browser game modes count from the start of the run. Use the fixed deposit desk for the first 36 months, trade stocks without leverage for the next 60 months, and access the full market, property and businesses after month 96.
+All four browser game modes count from the start of the run. Use Bank for fixed deposits and Market for emergency planning and insurance during the first 36 months, trade stocks without leverage for the next 60 months, and access the full market, property and businesses after month 96.
 
 四种模式均从各自开局计时。第 36、96 个月弹出阶段分数并颁发奖章。「继续游戏」会推进本次剩余月份。「保存并退出」会保留结算点，重新进入后可推进剩余月份。第三阶段也可随时保存退出。
+
+前三年，银行办理定存。Market 的理财与保障页面显示三个月生活费的储备目标，并提供可选的应急保险。游戏内突发开支按月结算，保费为每月 RM 90，扣除 RM 200 免赔额后赔付 80%，每次最多 RM 2,000。保障在第 36 个月结算后结束。储蓄基准承担同样的突发开支，账单和报表列出保费、开支与理赔。
 
 个人主页汇总阶段奖章和盈利奖章。盈利奖章按扣除手续费后的已实现净利润计算，门槛为累计交易净赚 RM 1,000,000 或比特币净赚 RM 100,000。旧章节存档保留已获得的分数和奖章，并在尚未到达的新阶段节点结算。
 

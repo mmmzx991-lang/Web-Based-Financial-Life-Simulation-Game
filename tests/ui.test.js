@@ -187,3 +187,15 @@ test("report and CSV summary show live cash after a trade before month close", (
     assert.ok(csv.includes(`"${t("assetsTotal")} (RM)","${(summary.assets / 100).toFixed(2)}"`));
   }
 });
+
+test("a first-stage save with an existing savings balance can withdraw at Bank", () => {
+  setLanguage("en");
+  const fixture = structuredClone(state);
+  fixture.session.game = createGame({ chaptersEnabled: true });
+  fixture.session.game.savings = 100000;
+  const bank = pages.bank(fixture);
+  assert.match(bank, /value="savings-withdraw"/);
+  assert.doesNotMatch(bank, /value="savings-deposit"/);
+  assert.match(pages.market(fixture), /Financial planning and protection/);
+  assert.doesNotMatch(pages.market(fixture), /data-form="transfer"/);
+});

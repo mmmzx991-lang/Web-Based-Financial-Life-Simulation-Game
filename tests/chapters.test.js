@@ -97,3 +97,65 @@ test("BTC and overall profit medals are earned on net realized gains and only on
   assert.equal(g.journey.profit.btc, g.journey.profit.net);
   assert.deepEqual(g.journey.achievements, ["btc-profit", "million-profit"]);
 });
+
+test("emergency cover charges premiums, reimburses the same underlying incident, and ends at month 36", () => {
+  let uninsured = start();
+  let insured = act(uninsured, { type: "enable-emergency-cover" });
+  let claims = 0;
+  for (let month = 1; month <= 36; month++) {
+    while (insured.pendingEvent) insured = step(insured);
+    while (uninsured.pendingEvent) uninsured = step(uninsured);
+    insured = step(insured);
+    uninsured = step(uninsured);
+    const a = insured.history.at(-1);
+    const b = uninsured.history.at(-1);
+    assert.equal(a.emergencyCost, b.emergencyCost);
+    assert.equal(a.benchmark, b.benchmark);
+    assert.equal(a.protectionPremium, 9000);
+    assert.equal(b.protectionPremium, 0);
+    assert.equal(b.protectionPayout, 0);
+    assert.equal(a.billTotal - b.billTotal, a.protectionPremium);
+    const payout = a.emergencyCost
+      ? Math.min(200000, Math.round((a.emergencyCost - 20000) * 0.8))
+      : 0;
+    assert.equal(a.protectionPayout, payout);
+    claims += payout;
+    assert.equal(insured.cash - uninsured.cash, claims - 9000 * month);
+  }
+  assert.ok(claims > 0);
+  assert.equal(insured.journey.emergencyCover, false);
+  insured.journey.notice = null;
+  assert.throws(
+    () => act(insured, { type: "enable-emergency-cover" }),
+    /first stage/,
+  );
+  insured = step(insured);
+  assert.equal(insured.history.at(-1).protectionPremium, undefined);
+});
+
+test("extending an unpaid bill at month 36 preserves the rest of the batch", () => {
+  let game = start();
+  while (game.elapsedMonths < 35 || game.pendingEvent) game = step(game);
+  game.cash = 0;
+  game.monthlySalary = 0;
+  game = step(game, 3);
+  assert.ok(game.pendingSettlement);
+  game = act(game, { type: "extend-bill" });
+  assert.equal(game.elapsedMonths, 36);
+  assert.equal(game.journey.notice, "stage-36");
+  assert.equal(game.journey.carry, 2);
+  assert.equal(game.remainingAdvance, 0);
+
+  game.journey.notice = null;
+  game.cash = 10000000;
+  const restored = act(game, { type: "resume" });
+  assert.equal(restored.elapsedMonths, 38);
+  assert.equal(restored.journey.carry, 0);
+
+  game.remainingAdvance = 1; // A save created before this fix.
+  game = act(game, { type: "continue-months" });
+  assert.equal(game.remainingAdvance, 2);
+  game = act(game, { type: "resume" });
+  assert.equal(game.elapsedMonths, 38);
+  assert.equal(game.journey.results.length, 1);
+});

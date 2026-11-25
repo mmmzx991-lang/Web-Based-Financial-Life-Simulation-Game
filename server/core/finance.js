@@ -95,7 +95,12 @@ export function baselineValue(game) {
     b.loans.reduce((s, l) => s + l.principal, 0)
   );
 }
-export function settleBaseline(game, salaryBonus = 0, salaryMultiplier = 1) {
+export function settleBaseline(
+  game,
+  salaryBonus = 0,
+  salaryMultiplier = 1,
+  emergencyCost = 0,
+) {
   const b = game.baseline;
   const salary = game.ageMonths < 720 ? b.monthlySalary : 0;
   const interest = Math.round(
@@ -123,6 +128,7 @@ export function settleBaseline(game, salaryBonus = 0, salaryMultiplier = 1) {
     rent -
     maintenance -
     loans -
+    emergencyCost -
     livingCost(Math.floor(game.ageMonths / 12));
   b.monthlySalary = Math.round(b.monthlySalary * salaryMultiplier);
   if ((game.ageMonths + 1) % 12 === 0 && game.ageMonths + 1 < 720)

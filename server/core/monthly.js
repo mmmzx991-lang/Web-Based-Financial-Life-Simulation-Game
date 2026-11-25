@@ -1,3 +1,4 @@
+import { settleEmergencyCover } from "./protection.js";
 import {finishChapter, matureDeposits, recordTradingProfit} from "./chapters.js";
 import {
   ASSETS,
@@ -396,7 +397,9 @@ function settleMonth(game) {
     ledger.maintenance +
     ledger.loanInterest +
     ledger.businessCosts;
+  const protectionDue = settleEmergencyCover(game, ledger, target);
   const due =
+    protectionDue +
     ledger.livingCost +
     ledger.maintenance +
     loanPayments +
@@ -420,7 +423,7 @@ function settleMonth(game) {
   ledger.billPaid = Math.min(due, Math.max(0, paid - carried));
   game.unpaidBill = bill.amount > 0 ? bill : null;
   game.pendingSettlement = { month: target, ledger };
-  settleBaseline(game, ledger.bonus, multiplier);
+  settleBaseline(game, ledger.bonus, multiplier, ledger.emergencyCost);
   if (game.unpaidBill) {
     game.stats.unpaidMonths++;
     game.stats.latePayments += dueLoanCount;
@@ -468,5 +471,6 @@ export function extendBill(game) {
   game.pendingSettlement.ledger.fees += SETTINGS.extensionFee;
   finishPending(game);
   game.status = "paused";
-  game.remainingAdvance = Math.max(1, game.remainingAdvance);
+  if (!game.journey?.notice)
+    game.remainingAdvance = Math.max(1, game.remainingAdvance);
 }
