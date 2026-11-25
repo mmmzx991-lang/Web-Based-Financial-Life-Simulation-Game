@@ -16,6 +16,8 @@ export function exportReport(game, summary) {
     [t("difficulty"), t(game.difficulty)],
     [t("ruleset"), t(game.ruleset)],
     [t("month"), summary.monthsPlayed],
+    [t("cash") + " (RM)", rm(summary.cash)],
+    [t("assetsTotal") + " (RM)", rm(summary.assets)],
     [t("netWorth") + " (RM)", rm(summary.netWorth)],
     [t("realWealth") + " (RM)", rm(summary.realNetWorth)],
     [t("benchmark") + " (RM)", rm(summary.benchmark)],
