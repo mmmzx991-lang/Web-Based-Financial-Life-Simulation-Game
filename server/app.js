@@ -181,6 +181,7 @@ export function createApp({
         for (const record of store.games()) {
           const game = record.game;
           if (
+            Boolean(game.journey) !== (url.searchParams.get("chapters") === "1") ||
             game.version !== 2 ||
             (game.marketVersion ?? 2) !== 4 ||
             game.ruleset !== "standard" ||

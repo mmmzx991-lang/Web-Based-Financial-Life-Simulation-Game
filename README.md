@@ -18,6 +18,14 @@ Open **http://127.0.0.1:3000**. Runtime has no third-party dependencies; `npm in
 
 安装 Node.js 24 LTS 后运行以上命令，打开本地地址。可注册本地账户，也可游客试玩；游客注册后保留原有进度。游戏在每次成功操作及月度结算后自动保存。账户与存档保存在本机此项目的 `data/` 中，不会上传 GitHub。
 
+## Life stages / 人生阶段
+
+All four browser game modes count from the start of the run. Use the fixed deposit desk for the first 36 months, trade stocks without leverage for the next 60 months, and access the full market, property and businesses after month 96.
+
+四种模式均从各自开局计时。第 36、96 个月弹出阶段分数并颁发奖章。「继续游戏」会推进本次剩余月份。「保存并退出」会保留结算点，重新进入后可推进剩余月份。第三阶段也可随时保存退出。
+
+个人主页汇总阶段奖章和盈利奖章。盈利奖章按扣除手续费后的已实现净利润计算，门槛为累计交易净赚 RM 1,000,000 或比特币净赚 RM 100,000。旧章节存档保留已获得的分数和奖章，并在尚未到达的新阶段节点结算。
+
 ## Architecture 项目架构
 
 The browser runs plain JavaScript modules. One Node.js process serves the UI, handles the JSON API, and writes local saves. The server calculates the game state used by reports and the leaderboard.

@@ -1,3 +1,5 @@
+import {stage} from "./chapters.js";
+import {chapterPanel, depositPanel, medals, label} from "./chapter-view.js";
 import { positionMetrics } from "./leverage-math.js";
 import { orderValue } from "./order-math.js";
 import {
@@ -113,7 +115,9 @@ export function shell(state, content) {
   ${state.busy ? `<div class="request-progress" role="status"><span>${t("processing")}</span></div>` : ""}${game ? `<nav class="mobile-nav" aria-label="${t("life")}">${["life", "market", "assets", "news", "more"].map((id) => navButton(id, state.view, true)).join("")}</nav>` : ""}`;
 }
 export function home(state) {
-  return `<section class="home-hero"><div><p class="eyebrow">${t("tagline")}</p><h1>${t("heroTitle").replace("\n", "<br>")}</h1><p class="hero-description">${t("heroDescription")}</p><div class="hero-actions">${button(`${t("start")} ${icon("arrow")}`, 'data-view="setup"')}${state.session ? button(t("continue"), 'data-view="life"', "secondary") : button(t("signin"), 'data-auth="login"', "secondary")}</div><div class="hero-facts"><span>${t("fourModes")}</span><span>${t("fourLevels")}</span><span>${t("fifteenAssets")}</span></div></div><div class="hero-map">${scene()}<span class="map-tag map-tag-one">${icon("market")}${t("marketStreet")}</span><span class="map-tag map-tag-two">${icon("property")}${t("propertyQuarter")}</span><span class="map-tag map-tag-three">${icon("business")}${t("businessAvenue")}</span></div></section><div class="home-intro"><h2>${t("monthRhythm")}</h2><div class="three-columns">${[
+  const last=state.games?.find(g=>g.id===localStorageSafe()) || state.games?.[0];
+  function localStorageSafe(){return globalThis.localStorage?.getItem("investment-last-game");}
+  return `<section class="home-hero"><div><p class="eyebrow">${t("tagline")}</p><h1>${t("heroTitle").replace("\n", "<br>")}</h1><p class="hero-description">${t("heroDescription")}</p><div class="hero-actions">${button(`${t("start")} ${icon("arrow")}`, 'data-view="setup"')}${!state.session && last ? button(t("continue")+" · "+modeLabel(last.mode)+" · "+t("age")+" "+Math.floor(last.ageMonths/12), `data-load="${E(last.id)}"`, "primary") : state.session ? button(t("continue"), 'data-view="life"', "secondary") : button(t("signin"), 'data-auth="login"', "secondary")}</div><div class="hero-facts"><span>${t("fourModes")}</span><span>${t("fourLevels")}</span><span>${t("fifteenAssets")}</span></div></div><div class="hero-map">${scene()}<span class="map-tag map-tag-one">${icon("market")}${t("marketStreet")}</span><span class="map-tag map-tag-two">${icon("property")}${t("propertyQuarter")}</span><span class="map-tag map-tag-three">${icon("business")}${t("businessAvenue")}</span></div></section><div class="home-intro"><h2>${t("monthRhythm")}</h2><div class="three-columns">${[
     ["introPlan", "introPlanBody", "life"],
     ["introAdvance", "introAdvanceBody", "clock"],
     ["introLearn", "introLearnBody", "report"],
@@ -164,6 +168,8 @@ function advanceButtons(game) {
     return button(t("viewReport"), 'data-view="report"', "secondary");
   if (game.status === "paused")
     return button(t("reviewIssue"), 'data-view="life"', "secondary");
+  if (game.journey?.carry)
+    return actionButton(label("Continue remaining months", "推进剩余月份") + " (" + game.journey.carry + ")", "continue-months", {}, "primary");
   return `<div class="action-row">${actionButton(t("nextMonth"), "advance", { months: 1 }, "primary")}${actionButton(t("nextThree"), "advance", { months: 3 }, "secondary")}</div>`;
 }
 export function sessionBar(state) {
@@ -171,7 +177,7 @@ export function sessionBar(state) {
     s = state.session.summary,
     total = g.endAgeMonths - g.startAgeMonths,
     progress = Math.min(100, (g.elapsedMonths / total) * 100);
-  return `<section class="session-bar ${g.status === "paused" ? "has-issue" : ""}" aria-label="${t("thisMonth")}"><div class="session-time"><span class="eyebrow">${modeLabel(g.mode)}</span><strong>${headingState(g, s)}</strong><progress value="${g.elapsedMonths}" max="${total}" aria-label="${t("lifeProgress")}"></progress></div><div class="session-cash"><span>${t("cash")}</span><strong>${money(g.cash)}</strong></div><div class="session-actions">${advanceButtons(g)}</div></section>`;
+  return `<section class="session-bar ${g.status === "paused" ? "has-issue" : ""}" aria-label="${t("thisMonth")}"><div class="session-time"><span class="eyebrow">${modeLabel(g.mode)}</span><strong>${headingState(g, s)}</strong><progress value="${g.elapsedMonths}" max="${total}" aria-label="${t("lifeProgress")}"></progress></div><div class="session-cash"><span>${t("cash")}</span><strong>${money(g.cash)}</strong></div><div class="session-actions">${advanceButtons(g)}<button class="button secondary" data-save-exit>${label("Save and exit","保存并退出")}</button></div></section>`;
 }
 function shortcuts(state) {
   return `<section class="quick-access" aria-label="${t("quickAccess")}">${[
@@ -189,7 +195,7 @@ function shortcuts(state) {
 
 export function life(state) {
   const { game: g, summary: s } = state.session;
-  return `${title(t("tagline"), t("dashboardTitle"), t("dashboardDescription"))}${pausedBanner(g)}${!canAct(g) ? `<div class="notice">${t("completedHint")} ${button(t("viewReport"), 'data-view="report"', "secondary")}</div>` : ""}<div class="metrics four">${card(t("netWorth"), money(s.netWorth), `${t("realWealth")} ${money(s.realNetWorth)} · ${t("versusBenchmark")} ${money(s.realNetWorth - s.realBenchmark)}`, "highlight")}${card(t("cash"), money(g.cash), `${t("savings")} ${money(g.savings)}`)}${card(t("salary"), money(g.monthlySalary), s.retired ? t("retired") : t("monthlyLiving") + " " + money(s.age < 45 ? 200000 : s.age < 60 ? 300000 : 250000))}${card(t("liabilities"), money(s.liabilities), `${t("priceIndex")} ${number(g.priceIndex)}`)}</div>${shortcuts(state)}<div class="life-layout"><section class="panel life-world"><div class="panel-heading"><div><p class="eyebrow">${t("thisMonth")}</p><h2>${t(g.economy || "recovery")}</h2></div>${pill(t("autosaved"), "success")}</div>${scene()}<div class="world-destinations">${[
+  return `${title(t("tagline"), t("dashboardTitle"), t("dashboardDescription"))}${chapterPanel(g)}${pausedBanner(g)}${!canAct(g) ? `<div class="notice">${t("completedHint")} ${button(t("viewReport"), 'data-view="report"', "secondary")}</div>` : ""}<div class="metrics four">${card(t("netWorth"), money(s.netWorth), `${t("realWealth")} ${money(s.realNetWorth)} · ${t("versusBenchmark")} ${money(s.realNetWorth - s.realBenchmark)}`, "highlight")}${card(t("cash"), money(g.cash), `${t("savings")} ${money(g.savings)}`)}${card(t("salary"), money(g.monthlySalary), s.retired ? t("retired") : t("monthlyLiving") + " " + money(s.age < 45 ? 200000 : s.age < 60 ? 300000 : 250000))}${card(t("liabilities"), money(s.liabilities), `${t("priceIndex")} ${number(g.priceIndex)}`)}</div>${shortcuts(state)}<div class="life-layout"><section class="panel life-world"><div class="panel-heading"><div><p class="eyebrow">${t("thisMonth")}</p><h2>${t(g.economy || "recovery")}</h2></div>${pill(t("autosaved"), "success")}</div>${scene()}<div class="world-destinations">${[
     ["market", "marketStreet"],
     ["property", "propertyQuarter"],
     ["business", "businessAvenue"],
@@ -203,7 +209,9 @@ export function life(state) {
 }
 export function market(state) {
   const { game: g } = state.session;
-  const filter = state.marketFilter || "all";
+  const desk = g.journey ? stage(g) : 3;
+  if (desk === 1) return title(t("tagline"),label("Fixed deposit desk","定存交易台"),label("Stock trading opens after month 36.","第 36 个月结算后开放股票交易。")) + depositPanel(g);
+  const filter = desk === 2 ? "stocks" : state.marketFilter || "all";
   const groups = [
     ["stocks", "stock", "stockDescription"],
     ["crypto", "crypto", "cryptoDescription"],
@@ -242,8 +250,12 @@ export function market(state) {
           ? g.prices[b.id] - g.prices[a.id]
           : text(a.name).localeCompare(text(b.name)),
     );
+  const shortcuts = desk === 2
+    ? [["bank", label("Manage fixed deposits", "管理定存")]]
+    : [["bank", t("bank")], ["property", t("property")], ["business", t("business")]];
+  const links = g.journey ? `<div class="action-row">${shortcuts.map(([view, name]) => button(name, 'data-view="' + view + '"', "secondary")).join("")}</div>` : "";
   const macro = g.macro;
-  const overview = `<div class="market-categories">${groups
+  const overview = desk === 2 ? "" : `<div class="market-categories">${groups
     .map(([id, category, description]) => {
       const count = state.config.assets.filter(
         (a) => a.category === category,
@@ -280,7 +292,7 @@ export function market(state) {
       )}</section>`;
     })
     .join("");
-  return `${title(t("tagline"), filter === "all" ? t("marketTitle") : t(filter), selected ? t(selected[2]) : t("marketDescription"))}${pausedBanner(g)}${g.marketState?.marketShock?.kind && g.marketState.marketShock.kind !== "normal" ? `<div class="notice" role="status"><strong>${t(g.marketState.marketShock.kind === "selloff" ? "marketSelloff" : "marketRally")}</strong><p>${t("marketShockHint")}</p></div>` : ""}${macro ? `<div class="metrics four market-macro">${card(t("policyRate"), percent(macro.policyRate))}${card(t("inflation"), percent(macro.inflation))}${card(t("economicGrowth"), percent(macro.growth))}${card(t("confidence"), percent(macro.confidence))}</div>` : ""}${overview}<div class="market-toolbar"><div class="filter-row"><button class="filter-chip ${filter === "all" ? "selected" : ""}" data-filter="all">${t("marketOverview")}</button>${filter === "commodities" ? ["all", "energy", "metals", "agriculture"].map((id) => `<button class="filter-chip ${subfilter === id ? "selected" : ""}" data-subfilter="${id}">${t(id)}</button>`).join("") : ""}${pill(t(g.economy || "expansion"), "success")}</div><div class="market-search-controls">${field(t("searchAssets"), `<input id="market-search" type="search" value="${E(state.marketSearch || "")}" placeholder="${t("searchAssets")}" autocomplete="off">`)}${field(
+  return `${g.journey ? `<h2>${desk === 2 ? label("Spot stock desk","股票现货交易台") : label("Multi-asset trading desk","综合交易台")}</h2>` : ""}${title(t("tagline"), filter === "all" ? t("marketTitle") : t(filter), selected ? t(selected[2]) : t("marketDescription"))}${pausedBanner(g)}${g.marketState?.marketShock?.kind && g.marketState.marketShock.kind !== "normal" ? `<div class="notice" role="status"><strong>${t(g.marketState.marketShock.kind === "selloff" ? "marketSelloff" : "marketRally")}</strong><p>${t("marketShockHint")}</p></div>` : ""}${macro ? `<div class="metrics four market-macro">${card(t("policyRate"), percent(macro.policyRate))}${card(t("inflation"), percent(macro.inflation))}${card(t("economicGrowth"), percent(macro.growth))}${card(t("confidence"), percent(macro.confidence))}</div>` : ""}${links}${overview}<div class="market-toolbar"><div class="filter-row"><button class="filter-chip ${filter === "all" ? "selected" : ""}" data-filter="all">${t("marketOverview")}</button>${filter === "commodities" ? ["all", "energy", "metals", "agriculture"].map((id) => `<button class="filter-chip ${subfilter === id ? "selected" : ""}" data-subfilter="${id}">${t(id)}</button>`).join("") : ""}${pill(t(g.economy || "expansion"), "success")}</div><div class="market-search-controls">${field(t("searchAssets"), `<input id="market-search" type="search" value="${E(state.marketSearch || "")}" placeholder="${t("searchAssets")}" autocomplete="off">`)}${field(
     t("sortBy"),
     select(
       "market-sort",
@@ -357,7 +369,7 @@ export function businesses(state) {
 }
 export function bank(state) {
   const { game: g } = state.session;
-  return `${title(t("tagline"), t("bankTitle"), t("bankDescription"))}${pausedBanner(g)}<div class="metrics three">${card(t("cash"), money(g.cash), "", "highlight")}${card(t("savings"), money(g.savings))}${card(t("retirementBalance"), money(g.retirementBalance))}</div><div class="two-columns">${[
+  return `${title(t("tagline"), t("bankTitle"), t("bankDescription"))}${depositPanel(g)}${pausedBanner(g)}<div class="metrics three">${card(t("cash"), money(g.cash), "", "highlight")}${card(t("savings"), money(g.savings))}${card(t("retirementBalance"), money(g.retirementBalance))}</div><div class="two-columns">${[
     ["savings", g.savings],
     ["retirement", g.retirementBalance],
   ]
@@ -400,7 +412,7 @@ export function reports(state) {
     .filter((r) => r.elapsedMonths > 0)
     .slice(-24)
     .reverse();
-  return `${title(t("tagline"), s.completed || s.bankrupt ? t("reportTitle") : t("progressReport"))}<div class="report-top"><section class="score-hero"><p class="eyebrow">${s.completed ? t("finalScore") : t("score")}</p><strong>${Number(score.total || 0).toFixed(2)}<small> / 100</small></strong><span>${modeLabel(g.mode)} / ${t(g.difficulty)} / ${t(g.ruleset)}</span>${pill(t(g.status), s.completed ? "success" : "")}</section><section class="panel final-position"><h2>${t("balanceSheet")}</h2>${line(t("cash"), money(s.cash))}${line(t("netWorth"), money(s.netWorth))}${line(t("realWealth"), money(s.realNetWorth))}${line(t("realWealth") + " · " + t("benchmark"), money(s.realBenchmark))}${line(t("versusBenchmark"), money(s.realNetWorth - s.realBenchmark))}<p class="small muted">${t("benchmarkHint")}</p>${line(t("assetsTotal"), money(s.assets))}${line(t("liabilities"), money(s.liabilities))}${button(t("download"), "data-download", "secondary")}</section></div><section class="panel"><div class="panel-heading"><h2>${t("wealthJourney")}</h2><div class="chart-legend"><span>${t("netWorth")}</span><span>${t("benchmark")}</span></div></div>${wealthChart(g.history, { wealth: t("netWorth"), benchmark: t("benchmark"), age: t("age") })}<p class="small muted">${t("reportHint")}</p></section><div class="metrics four">${[
+  return `${(g.journey?.results.length || g.journey?.achievements?.length) ? medals([state.session.game.journey],true) : ""}${title(t("tagline"), s.completed || s.bankrupt ? t("reportTitle") : t("progressReport"))}<div class="report-top"><section class="score-hero"><p class="eyebrow">${s.completed ? t("finalScore") : t("score")}</p><strong>${Number(score.total || 0).toFixed(2)}<small> / 100</small></strong><span>${modeLabel(g.mode)} / ${t(g.difficulty)} / ${t(g.ruleset)}</span>${pill(t(g.status), s.completed ? "success" : "")}</section><section class="panel final-position"><h2>${t("balanceSheet")}</h2>${line(t("cash"), money(s.cash))}${line(t("netWorth"), money(s.netWorth))}${line(t("realWealth"), money(s.realNetWorth))}${line(t("realWealth") + " · " + t("benchmark"), money(s.realBenchmark))}${line(t("versusBenchmark"), money(s.realNetWorth - s.realBenchmark))}<p class="small muted">${t("benchmarkHint")}</p>${line(t("assetsTotal"), money(s.assets))}${line(t("liabilities"), money(s.liabilities))}${button(t("download"), "data-download", "secondary")}</section></div><section class="panel"><div class="panel-heading"><h2>${t("wealthJourney")}</h2><div class="chart-legend"><span>${t("netWorth")}</span><span>${t("benchmark")}</span></div></div>${wealthChart(g.history, { wealth: t("netWorth"), benchmark: t("benchmark"), age: t("age") })}<p class="small muted">${t("reportHint")}</p></section><div class="metrics four">${[
     ["wealth", "wealthScore", "60%"],
     ["risk", "riskScore", "15%"],
     ["cashFlow", "cashFlowScore", "15%"],
@@ -461,7 +473,7 @@ export function leaderboard(state) {
   }</section>`;
 }
 export function profile(state) {
-  return `${title(t("tagline"), t("profileTitle"))}<section class="panel account-panel"><div class="avatar large">${E(state.user?.displayName?.slice(0, 2).toUpperCase() || "IG")}</div><div><h2>${E(state.user?.displayName || "")}</h2><p>${state.user?.guest ? t("guestAccount") : E(state.user?.email || t("localAccount"))}</p></div>${button(t("logout"), "data-logout", "secondary")}${state.user?.guest ? button(t("register"), 'data-auth="register"', "primary") : ""}</section>${state.user?.guest ? `<div class="notice">${t("guestHint")}</div>` : ""}<div class="panel-heading"><h2>${t("savedGames")}</h2>${button(t("newGame"), 'data-view="setup"', "secondary")}</div><div class="saved-grid">${state.games?.length ? state.games.map((g) => `<article class="panel saved-card"><div class="panel-heading">${icon("life")}${pill(t(g.status))}</div><h2>${modeLabel(g.mode)}</h2><p>${t(g.difficulty)} · ${t(g.ruleset)}</p><p>${t("age")} ${Math.floor(g.ageMonths / 12)}</p>${button(t("load"), `data-load="${E(g.id)}"`, "secondary full-width")}</article>`).join("") : empty(t("noGames"))}</div>`;
+  return `${title(t("tagline"), t("profileTitle"))}<section class="panel account-panel"><div class="avatar large">${E(state.user?.displayName?.slice(0, 2).toUpperCase() || "IG")}</div><div><h2>${E(state.user?.displayName || "")}</h2><p>${state.user?.guest ? t("guestAccount") : E(state.user?.email || t("localAccount"))}</p></div>${button(t("logout"), "data-logout", "secondary")}${state.user?.guest ? button(t("register"), 'data-auth="register"', "primary") : ""}</section>${state.user?.guest ? `<div class="notice">${t("guestHint")}</div>` : ""}${medals(state.games||[])}<div class="panel-heading"><h2>${t("savedGames")}</h2>${button(t("newGame"), 'data-view="setup"', "secondary")}</div><div class="saved-grid">${state.games?.length ? state.games.map((g) => `<article class="panel saved-card"><div class="panel-heading">${icon("life")}${pill(t(g.status))}</div><h2>${modeLabel(g.mode)}</h2><p>${t(g.difficulty)} · ${t(g.ruleset)}</p><p>${t("age")} ${Math.floor(g.ageMonths / 12)}</p>${button(t("load"), `data-load="${E(g.id)}"`, "secondary full-width")}</article>`).join("") : empty(t("noGames"))}</div>`;
 }
 export function more(state) {
   return `${title(t("tagline"), t("more"))}<div class="more-grid">${["property", "business", "bank", "report", "leaderboard", "profile", "help"].map((id) => navButton(id, state.view)).join("")}</div>`;
@@ -496,7 +508,7 @@ export function tradeDialog(state, assetId) {
     t("leverage"),
     select(
       "leverage",
-      Array.from({ length: a.maxLeverage || 2 }, (_, i) => [
+      Array.from({ length: g.journey && stage(g) < 3 ? 1 : (a.maxLeverage || 2) }, (_, i) => [
         i + 1,
         i === 0 ? t("spot") : `${i + 1}×`,
       ]),

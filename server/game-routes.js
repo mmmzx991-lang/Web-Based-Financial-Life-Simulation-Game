@@ -50,6 +50,8 @@ export async function handleGameRequest(req, path, { store, requireUser, send })
       .filter((record) => record.ownerId === user.id)
       .map((record) => ({
         id: record.id,
+        achievements: record.game.journey?.achievements || [],
+        results: record.game.journey?.results || [],
         mode: record.game.mode,
         difficulty: record.game.difficulty,
         ruleset: record.game.ruleset,
@@ -65,7 +67,7 @@ export async function handleGameRequest(req, path, { store, requireUser, send })
     const input = await readJsonObject(req),
       user = requireUser();
     const options = {};
-    for (const field of ["mode", "difficulty", "ruleset"])
+    for (const field of ["mode", "difficulty", "ruleset","chaptersEnabled"])
       if (Object.hasOwn(input, field)) options[field] = input[field];
     const game = core.createGame(options),
       id = randomUUID(),
@@ -103,8 +105,20 @@ export async function handleGameRequest(req, path, { store, requireUser, send })
   // Read identity and game only after the complete body, then settle without awaits.
   user = requireUser();
   record = owner(store, id, user.id);
-  if (route === "save")
-    return send(200, { saved: true, ...result(record) });
+  if (route === "save") {
+    if (input.seen && record.game.journey?.notice === input.seen) {
+      store.commit((next) => {
+        const saved = next.games[id];
+        const game = saved.game;
+        game.journey.notice = null;
+        game.journey.pendingMedals = [];
+        if (input.continueBatch === true && game.journey.carry)
+          saved.game = core.act(game, { type: "continue-months" });
+        saved.updatedAt = new Date().toISOString();
+      });
+    }
+    return send(200, { saved: true, ...result(owner(store,id,user.id)) });
+  }
   if (typeof input.requestId !== "string" || !uuid.test(input.requestId))
     throw httpError(
       400,
@@ -129,6 +143,8 @@ export async function handleGameRequest(req, path, { store, requireUser, send })
       replayResponse(record.actions[requestId], record.game),
     );
   const nextGame = core.act(record.game, input.action);
+  const latest = nextGame.journey?.results.at(-1);
+  if (latest && !latest.earnedAt) latest.earnedAt = new Date().toISOString();
   const response = { id, game: nextGame, summary: core.report(nextGame) };
   store.commit((next) => {
     const nextRecord = next.games[id];

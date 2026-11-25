@@ -572,6 +572,8 @@ export function errorText(error) {
   const message = error?.message || String(error);
   if (language === "en") return message;
   const translations = [
+    [/Chapter locked/i, "本章节尚未开放此功能。"],
+    [/Invalid deposit term/i, "请选择 3 或 12 个月的定存期限。"],
     [
       /password.*(8|short|long|characters)/i,
       "密码须符合长度要求（至少 8 个字符）。",

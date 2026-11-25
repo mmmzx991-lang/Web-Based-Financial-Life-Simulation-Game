@@ -1,3 +1,5 @@
+import { openDeposit, redeemDeposit, recordTradingProfit } from "./chapters.js";
+import {unlockMonth} from "../../public/chapters.js";
 import { closeQuote } from "../../public/leverage-math.js";
 import { tradeFee } from "../../public/order-math.js";
 import {
@@ -36,6 +38,7 @@ export { report } from "./finance.js";
 const own = (map, key) => typeof key === "string" && Object.hasOwn(map, key);
 function clone(state) {
   usable(state);
+  demand(!state.journey?.notice, "Acknowledge the award before continuing");
   return structuredClone(state);
 }
 function cashCost(game, amount) {
@@ -52,6 +55,7 @@ export function createGame({
   mode = "full-life",
   difficulty = "normal",
   ruleset = "standard",
+  chaptersEnabled = false,
   seed,
 } = {}) {
   demand(own(MODES, mode), "Invalid life mode");
@@ -65,6 +69,7 @@ export function createGame({
       "Invalid seed",
     );
   const game = {
+    ...(chaptersEnabled === true ? {journey:{results:[], deposits:[], openingUnpaid:0, notice:null, carry:0}} : {}),
     version: 2,
     marketVersion: 4,
     mode,
@@ -157,6 +162,7 @@ export function advance(state, months) {
       !game.remainingAdvance,
     "Game paused; resolve bill or event and resume",
   );
+  if (game.journey) game.journey.carry = 0;
   game.remainingAdvance = Math.min(months, game.endAgeMonths - game.ageMonths);
   return runRemaining(game);
 }
@@ -166,6 +172,7 @@ export function trade(state, { assetId, side, quantity, leverage = 1 } = {}) {
     asset = ASSETS.find((a) => a.id === assetId);
   demand(asset, "Unknown asset");
   demand(side === "buy" || side === "sell", "Invalid order side");
+  if (game.journey && side === "buy") demand(game.elapsedMonths >= unlockMonth("trade",asset.category,leverage), "Chapter locked");
   const scale = quantityScale(assetId),
     scaledQuantity = quantity * scale,
     units = quantityUnits(assetId, quantity);
@@ -218,6 +225,7 @@ export function trade(state, { assetId, side, quantity, leverage = 1 } = {}) {
         leverage,
         positionVersion: 2,
         margin,
+        entryFeeRemaining: cost,
         entryPrice: game.prices[assetId],
         openedMonth: game.marketMonth,
         lockedUntilMonth: game.marketMonth + 1,
@@ -235,6 +243,7 @@ export function trade(state, { assetId, side, quantity, leverage = 1 } = {}) {
         "Quantity too large",
       );
       const totalQuantity = quantityFromUnits(assetId, totalUnits);
+      h.costBasis = (h.costBasis ?? Math.round(h.quantity * h.averageCost)) + exposure + cost;
       h.averageCost = Math.round(
         (h.quantity * h.averageCost + exposure) / totalQuantity,
       );
@@ -253,6 +262,10 @@ export function trade(state, { assetId, side, quantity, leverage = 1 } = {}) {
     );
     cashCost(game, cost - exposure);
     recordExpense(game, cost);
+    const basis = h.costBasis ?? Math.round(h.quantity * h.averageCost);
+    const soldBasis = Math.round(basis * (units / quantityUnits(assetId, h.quantity)));
+    h.costBasis = basis - soldBasis;
+    recordTradingProfit(game, assetId, exposure - cost - soldBasis);
     h.quantity = quantityFromUnits(
       assetId,
       quantityUnits(assetId, h.quantity) - units,
@@ -270,7 +283,15 @@ export function act(state, action = {}) {
   if (action.type === "advance") return advance(state, action.months);
   if (action.type === "trade") return trade(state, action);
   const game = clone(state);
+  if (game.journey) demand(game.elapsedMonths >= unlockMonth(action.type), "Chapter locked");
   switch (action.type) {
+    case "open-deposit": openDeposit(game, action); return game;
+    case "redeem-deposit": redeemDeposit(game, action.depositId); return game;
+    case "continue-months":
+      demand(game.journey?.carry > 0 && ["active", "paused"].includes(game.status) && !game.remainingAdvance, "No pending advance");
+      game.remainingAdvance = game.journey.carry;
+      game.journey.carry = 0;
+      return runRemaining(game);
     case "resume": {
       demand(!game.pendingEvent, "Acknowledge event first");
       if (game.pendingSettlement) {
@@ -394,6 +415,9 @@ export function act(state, action = {}) {
         SETTINGS.tradeFee,
       );
       cashCost(game, -quote.proceeds);
+      const openingFee = Math.round((p.entryFeeRemaining || 0) * (quote.quantity / p.quantity));
+      if (quote.remaining) quote.remaining.entryFeeRemaining = (p.entryFeeRemaining || 0) - openingFee;
+      recordTradingProfit(game, p.assetId, quote.proceeds - quote.margin - openingFee);
       recordExpense(game, quote.fee);
       game.positions = quote.remaining
         ? game.positions.map((x) => (x.id === p.id ? quote.remaining : x))

@@ -48,6 +48,7 @@ export function values(game) {
   const propertyValue = game.properties.reduce((s, p) => s + p.value, 0);
   const businessValue = game.businesses.reduce((s, b) => s + b.value, 0);
   const assets =
+    (game.journey?.deposits || []).reduce((sum,d) => sum + d.amount, 0) +
     game.cash +
     game.savings +
     game.retirementBalance +

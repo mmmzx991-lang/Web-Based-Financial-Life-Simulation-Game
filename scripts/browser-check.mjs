@@ -22,6 +22,7 @@ let browser;
 try {
   browser = await chromium.launch({
     headless: true,
+    ...(process.platform === "linux" ? {args: ["--no-sandbox"]} : {}),
     ...(process.env.BROWSER_EXECUTABLE
       ? { executablePath: process.env.BROWSER_EXECUTABLE }
       : existsSync(edge)
@@ -52,6 +53,16 @@ try {
   await page.locator('[data-difficulty="normal"]').click();
   assert.match(await page.locator(".setup-preview").innerText(), /140,000/);
   await page.locator("[data-start-game]").click();
+  await page.locator(".life-layout").waitFor();
+  // Exercise the general market suite on a legacy run. The stage-specific
+  // browser suite covers the gated desks through the actual new-game workflow.
+  const created = await page.request.post(base + "/api/games", {
+    data: { mode: "wealth-building", difficulty: "normal", ruleset: "standard" },
+  });
+  assert.equal(created.status(), 201);
+  const { id: legacyId } = await created.json();
+  await page.evaluate(id => localStorage.setItem("investment-last-game", id), legacyId);
+  await page.reload();
   await page.locator(".life-layout").waitFor();
   const nav = async (id) => {
     await page.locator(`.sidebar [data-view="${id}"]`).first().click();

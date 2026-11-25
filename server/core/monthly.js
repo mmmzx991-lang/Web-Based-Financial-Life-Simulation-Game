@@ -1,3 +1,4 @@
+import {finishChapter, matureDeposits, recordTradingProfit} from "./chapters.js";
 import {
   ASSETS,
   BUSINESS_TYPES,
@@ -303,12 +304,14 @@ export function finishPending(game) {
     game.remainingAdvance = 0;
     game.pendingEvent = null;
   } else game.status = game.pendingEvent ? "paused" : "active";
+  finishChapter(game);
 }
 
 function settleMonth(game) {
   const target = game.marketMonth + 1,
     ledger = game.actionLedger;
   game.actionLedger = emptyLedger();
+  const termInterest = matureDeposits(game,target);
   dueSales(game, ledger, target);
   settleMarket(game);
   for (const holding of Object.values(game.holdings))
@@ -317,6 +320,7 @@ function settleMonth(game) {
     const equity = positionEquity(game, position);
     if (equity <= position.margin * SETTINGS.liquidationEquityRatio) {
       game.cash += equity;
+      recordTradingProfit(game, position.assetId, equity - position.margin - (position.entryFeeRemaining || 0));
       game.positions = game.positions.filter((p) => p.id !== position.id);
       game.stats.forcedLiquidations++;
       game.positionHistory = [
@@ -351,6 +355,7 @@ function settleMonth(game) {
     (game.savings * SETTINGS.savingsRate) / 12,
   );
   game.savings += ledger.savingsInterest;
+  ledger.savingsInterest += termInterest;
   ledger.retirementInterest = Math.round(
     (game.retirementBalance * SETTINGS.retirementRate) / 12,
   );

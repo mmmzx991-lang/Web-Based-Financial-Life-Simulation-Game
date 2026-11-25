@@ -1,3 +1,5 @@
+import {resultCard,label} from "./chapter-view.js";
+import {unlockMonth} from "./chapters.js";
 import { positionMetrics, closeQuote } from "./leverage-math.js";
 import { orderValue, maximumQuantity, tradeFee } from "./order-math.js";
 import { t, setLanguage, getLanguage, text, money, errorText } from "./i18n.js";
@@ -99,6 +101,18 @@ function render() {
       (b) =>
         (b.disabled = state.busy || (ended && state.view !== "leaderboard")),
     );
+  const game=state.session?.game;
+  if(game?.journey) {
+    for(const el of root.querySelectorAll('[data-trade],[data-action="start-business"],form[data-form="buy-property"] button[type="submit"]')){
+      const asset=state.config.assets.find(a=>a.id===el.dataset.trade);
+      const unlock=unlockMonth(asset?"trade":el.dataset.action||"buy-property",asset?.category);
+      if(game.elapsedMonths < unlock){
+        el.disabled=true;
+        el.textContent=label("Unlocks after month ","解锁所需月数：")+unlock;
+      }
+    }
+    if(game.elapsedMonths < 36) root.querySelectorAll('form[data-form="transfer"]').forEach(form=>form.hidden=true);
+  }
   if (state.busy) root.setAttribute("aria-busy", "true");
   else root.removeAttribute("aria-busy");
 }
@@ -165,13 +179,18 @@ function closeDialog() {
     confirmResolver = null;
   }
 }
-document.getElementById("dialog-close").onclick = closeDialog;
+function dismissDialog() {
+  if (dialogType === "chapter") {
+    dialog.querySelector("[data-chapter-continue]")?.click();
+  } else closeDialog();
+}
+document.getElementById("dialog-close").onclick = dismissDialog;
 dialog.addEventListener("cancel", (e) => {
   e.preventDefault();
-  closeDialog();
+  dismissDialog();
 });
 dialog.addEventListener("click", (e) => {
-  if (e.target === dialog) closeDialog();
+  if (e.target === dialog) dismissDialog();
 });
 function confirmDecision(message) {
   return new Promise((resolve) => {
@@ -187,13 +206,15 @@ async function loadGames() {
 }
 async function loadGame(id) {
   state.session = await api("/api/games/" + id);
+  localStorage.removeItem("investment-home");
+  if(state.session.game.journey?.notice) openDialog(resultCard(state.session.game),"chapter");
   localStorage.setItem("investment-last-game", id);
 }
 async function loadLeaderboard() {
   const { mode, difficulty } = state.leaderboardFilter;
   state.entries = (
     await api(
-      `/api/leaderboard?mode=${encodeURIComponent(mode)}&difficulty=${encodeURIComponent(difficulty)}`,
+      `/api/leaderboard?chapters=${state.session?.game && !state.session.game.journey ? 0 : 1}&mode=${encodeURIComponent(mode)}&difficulty=${encodeURIComponent(difficulty)}`,
     )
   ).entries;
 }
@@ -238,6 +259,7 @@ async function act(action) {
       action,
     });
     localStorage.removeItem(key);
+    if(state.session.game.journey?.notice) openDialog(resultCard(state.session.game),"chapter");
     const months = state.session.game.elapsedMonths - beforeMonth;
     toast(
       months > 0
@@ -253,7 +275,8 @@ async function act(action) {
 }
 async function begin() {
   if (!state.user) setUser((await api("/api/auth/guest", "POST", {})).user);
-  state.session = await api("/api/games", "POST", state.selection);
+  localStorage.removeItem("investment-home");
+  state.session = await api("/api/games", "POST", {...state.selection,chaptersEnabled:true});
   localStorage.setItem("investment-last-game", state.session.id);
   state.view = "life";
   toast(t("welcome"));
@@ -364,6 +387,7 @@ function quote(a) {
   const g = state.session.game,
     c = state.config,
     settings = c.settings || {};
+  if (a.type === "redeem-deposit") return label("Withdraw early and give up the interest?","提前支取将失去本期利息，确定吗？");
   if (a.type === "declare-bankruptcy") return t("confirmBankruptcy");
   if (a.type === "start-business") {
     const b = c.businessTypes[a.businessType];
@@ -403,6 +427,28 @@ async function perform(action) {
 document.addEventListener("click", async (e) => {
   const el = e.target.closest("button,[data-view]");
   if (!el || el.disabled || state.busy) return;
+  if (el.hasAttribute("data-chapter-continue") || el.hasAttribute("data-save-exit")) {
+    const exiting = el.hasAttribute("data-save-exit");
+    await work(async () => {
+      const { id, game } = state.session;
+      state.session = await api("/api/games/" + id + "/save", "POST", {
+        seen: game.journey?.notice,
+        continueBatch: !exiting,
+      });
+      if (dialog.open) closeDialog();
+      if (exiting) {
+        await loadGames();
+        state.session = null;
+        state.view = "home";
+        localStorage.setItem("investment-home", "1");
+      } else {
+        const next = state.session.game;
+        state.view = ["completed", "bankrupt"].includes(next.status) ? "report" : "life";
+        if (next.journey?.notice) openDialog(resultCard(next), "chapter");
+      }
+    });
+    return;
+  }
   if (el.dataset.confirm) {
     const resolve = confirmResolver;
     confirmResolver = null;
@@ -460,7 +506,7 @@ document.addEventListener("click", async (e) => {
   if (el.dataset.load) {
     await work(async () => {
       await loadGame(el.dataset.load);
-      state.view = "life";
+      state.view = ["completed","bankrupt"].includes(state.session.game.status) ? "report" : "life";
     });
     return;
   }
@@ -597,7 +643,7 @@ document.addEventListener("submit", async (e) => {
           positionId: values.positionId,
           quantity: Number(values.quantity),
         });
-        closeDialog();
+        if(dialogType !== "chapter") closeDialog();
       },
       { modal: true },
     );
@@ -613,7 +659,7 @@ document.addEventListener("submit", async (e) => {
           quantity: Number(values.quantity),
           leverage: values.side === "sell" ? 1 : Number(values.leverage),
         });
-        closeDialog();
+        if(dialogType !== "chapter") closeDialog();
       },
       { modal: true },
     );
@@ -631,6 +677,7 @@ document.addEventListener("submit", async (e) => {
       return;
     }
     let action = { type, ...values };
+    if (type === "open-deposit") action={type,amount:sen(values.amount),term:Number(values.term)};
     if (type === "transfer")
       action = { type: values.type, amount: sen(values.amount) };
     if (type === "take-loan")
@@ -660,7 +707,7 @@ async function boot() {
       await loadGames();
       const previous = localStorage.getItem("investment-last-game"),
         saved = state.games.find((g) => g.id === previous) || state.games[0];
-      if (saved) {
+      if (saved && !localStorage.getItem("investment-home")) {
         await loadGame(saved.id);
         state.view = "life";
       }
